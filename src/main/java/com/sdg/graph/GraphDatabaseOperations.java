@@ -28,7 +28,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
                 logger.debug("Creating class node: {}", className);
-                tx.run("MERGE (c:Class {name: $name})", parameters("name", className));
+                tx.run(CypherConstants.CREATE_CLASS, parameters("name", className));
                 return null;
             });
         }
@@ -38,9 +38,8 @@ public class GraphDatabaseOperations implements AutoCloseable {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
                 logger.debug("Creating method node and relationship: {}.{}", className, methodName);
-                tx.run("MERGE (m:Method {name: $name})", parameters("name", methodName));
-                tx.run("MATCH (c:Class {name: $className}), (m:Method {name: $methodName}) " +
-                                "MERGE (c)-[:HAS_METHOD]->(m)",
+                tx.run(CypherConstants.CREATE_METHOD, parameters("name", methodName));
+                tx.run(CypherConstants.CONNECT_METHOD_TO_CLASS,
                         parameters("className", className, "methodName", methodName));
                 return null;
             });
@@ -51,23 +50,21 @@ public class GraphDatabaseOperations implements AutoCloseable {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
                 logger.debug("Creating method call node and relationship: {} -> {}", methodName, methodCallName);
-                tx.run("MERGE (f:FunctionCall {name: $name})", parameters("name", methodCallName));
-                tx.run("MATCH (m:Method {name: $methodName}), (f:FunctionCall {name: $name}) " +
-                                "MERGE (m)-[:CALLS]->(f)",
+                tx.run(CypherConstants.CREATE_FUNCTION_CALL, parameters("name", methodCallName));
+                tx.run(CypherConstants.CONNECT_CALL_TO_METHOD,
                         parameters("methodName", methodName, "name", methodCallName));
                 return null;
             });
         }
     }
 
-    public void createControlFlowNode(String methodName, String condition, String type) {
+    public void createControlFlowNode(String methodName, String type, String condition) {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
                 logger.debug("Creating control flow node and relationship: {} -> {}", methodName, condition);
-                tx.run("MERGE (ctrl:ControlFlow {type: $type, condition: $condition})",
+                tx.run(CypherConstants.CREATE_CONTROL_FLOW,
                         parameters("type", type, "condition", condition));
-                tx.run("MATCH (m:Method {name: $methodName}), (ctrl:ControlFlow {condition: $condition}) " +
-                                "MERGE (m)-[:CONTAINS]->(ctrl)",
+                tx.run(CypherConstants.CONNECT_CONTROL_TO_METHOD,
                         parameters("methodName", methodName, "condition", condition));
                 return null;
             });
