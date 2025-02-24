@@ -1,0 +1,84 @@
+package com.sdg.graph;
+
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.AuthTokens;
+import org.neo4j.driver.Session;
+
+import org.slf4j.Logger;
+import com.sdg.logging.LoggerUtil;
+
+import static org.neo4j.driver.Values.parameters;
+
+public class GraphDatabaseOperations implements AutoCloseable {
+    // TODO: Replace usage of this class with depreacted methods in this class
+
+    private static final Logger logger = LoggerUtil.getLogger(GraphDatabaseOperations.class);
+    private final Driver driver;
+
+    public GraphDatabaseOperations() {
+        logger.info("Initializing GraphDatabaseOperations");
+        this.driver = GraphDatabase.driver(
+            Neo4jConfig.DB_URI, AuthTokens.basic(Neo4jConfig.DB_USER, Neo4jConfig.DB_PASSWORD)
+        );
+        logger.debug("Neo4j driver initialized with URI: {}", Neo4jConfig.DB_URI);
+    }
+
+    public void createClassNode(String className) {
+        try (Session session = driver.session()) {
+            session.writeTransaction(tx -> {
+                logger.debug("Creating class node: {}", className);
+                tx.run("MERGE (c:Class {name: $name})", parameters("name", className));
+                return null;
+            });
+        }
+    }
+
+    public void createMethodNode(String className, String methodName) {
+        try (Session session = driver.session()) {
+            session.writeTransaction(tx -> {
+                logger.debug("Creating method node and relationship: {}.{}", className, methodName);
+                tx.run("MERGE (m:Method {name: $name})", parameters("name", methodName));
+                tx.run("MATCH (c:Class {name: $className}), (m:Method {name: $methodName}) " +
+                                "MERGE (c)-[:HAS_METHOD]->(m)",
+                        parameters("className", className, "methodName", methodName));
+                return null;
+            });
+        }
+    }
+
+    public void createMethodCallNode(String methodName, String methodCallName) {
+        try (Session session = driver.session()) {
+            session.writeTransaction(tx -> {
+                logger.debug("Creating method call node and relationship: {} -> {}", methodName, methodCallName);
+                tx.run("MERGE (f:FunctionCall {name: $name})", parameters("name", methodCallName));
+                tx.run("MATCH (m:Method {name: $methodName}), (f:FunctionCall {name: $name}) " +
+                                "MERGE (m)-[:CALLS]->(f)",
+                        parameters("methodName", methodName, "name", methodCallName));
+                return null;
+            });
+        }
+    }
+
+    public void createControlFlowNode(String methodName, String condition, String type) {
+        try (Session session = driver.session()) {
+            session.writeTransaction(tx -> {
+                logger.debug("Creating control flow node and relationship: {} -> {}", methodName, condition);
+                tx.run("MERGE (ctrl:ControlFlow {type: $type, condition: $condition})",
+                        parameters("type", type, "condition", condition));
+                tx.run("MATCH (m:Method {name: $methodName}), (ctrl:ControlFlow {condition: $condition}) " +
+                                "MERGE (m)-[:CONTAINS]->(ctrl)",
+                        parameters("methodName", methodName, "condition", condition));
+                return null;
+            });
+        }
+    }
+
+    @Override
+    public void close() {
+        logger.info("Closing GraphDatabaseOperations");
+        if (driver != null) {
+            driver.close();
+        }
+    }
+}
