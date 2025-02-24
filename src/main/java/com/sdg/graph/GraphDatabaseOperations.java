@@ -16,6 +16,9 @@ public class GraphDatabaseOperations implements AutoCloseable {
     private static final Logger logger = LoggerUtil.getLogger(GraphDatabaseOperations.class);
     private final Driver driver;
 
+    /**
+     * Creates a new instance with default connection settings.
+     */
     public GraphDatabaseOperations() {
         logger.info("Initializing GraphDatabaseOperations");
         this.driver = GraphDatabase.driver(
@@ -71,9 +74,24 @@ public class GraphDatabaseOperations implements AutoCloseable {
         }
     }
 
+    public void deleteAllData() {
+        try (var session = driver.session()) {
+            logger.warn("Deleting all data from the database");
+            session.writeTransaction(tx -> {
+                logger.debug("Executing delete query");
+                tx.run(CypherConstants.DELETE_ALL);
+                logger.info("All data deleted successfully");
+                return null;
+            });
+        } catch (Exception e) {
+            logger.error("Error deleting database data", e);
+            throw e;
+        }
+    }
+
     @Override
     public void close() {
-        logger.info("Closing GraphDatabaseOperations");
+        logger.info("Closing Neo4j database connection");
         if (driver != null) {
             driver.close();
         }

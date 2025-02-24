@@ -51,13 +51,13 @@ public class ASTAnalyzer {
         method.findAll(IfStmt.class).forEach(ifStmt -> {
             String condition = ifStmt.getCondition().toString();
             logger.debug("Found if statement in {}: {}", methodName, condition);
-            dbOps.createControlFlowNode(methodName, condition, "if");
+            dbOps.createControlFlowNode(methodName, "if", condition);
         });
 
         method.findAll(ForStmt.class).forEach(forStmt -> {
-            String condition = forStmt.getCompare().toString();
+            String condition = forStmt.toString();
             logger.debug("Found for loop in {}: {}", methodName, condition);
-            dbOps.createControlFlowNode(methodName, condition, "for");
+            dbOps.createControlFlowNode(methodName, "for", condition);
         });
     }
 }

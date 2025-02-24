@@ -42,6 +42,13 @@ public class KnowledgeGraphService implements AutoCloseable {
         analyzer.analyzeAndStore(cu);
     }
 
+    /**
+     * Delegates to {@link com.sdg.graph.GraphDatabaseOperations#deleteAllData()}
+     */
+    public void deleteAllData() {
+        dbOps.deleteAllData();
+    }
+
     @Override
     public void close() {
         logger.info("Closing KnowledgeGraphService");
