@@ -1,7 +1,15 @@
 from flask import Flask, request, jsonify
+import sys
+import os
+
+# Add parent directory to Python path to make imports work
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from llm import llm_prompt
 
 app = Flask(__name__)
 
+# Test route
 @app.route('/multiply', methods=['POST'])
 def multiply():
     data = request.get_json()
@@ -9,6 +17,14 @@ def multiply():
     y = data.get('y', 0)
     result = x * y
     return jsonify({"message": f"The result of {x} * {y} is {result}"})
+    
+# Route for LLM
+@app.route('/llm', methods=['POST'])
+def llm():
+    data = request.get_json()
+    text_input = data.get('prompt', '')
+    result = llm_prompt(text_input)
+    return jsonify({"message": result})
 
 if __name__ == '__main__':
     app.run(port=5000)

@@ -1,9 +1,16 @@
 package com.sdg;
 
+import com.sdg.client.PythonClient;
 import com.sdg.graph.KnowledgeGraphService;
 
 public class Main {
-        public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        // knowledgeGraphServiceTest();
+        PythonClient pythonClient = new PythonClient();
+        System.out.println(pythonClient.llm("What is the capital of France?"));
+    }
+
+    private static void knowledgeGraphServiceTest() {
         try (KnowledgeGraphService graphService = new KnowledgeGraphService()) {
 
             // // Clean the database first
