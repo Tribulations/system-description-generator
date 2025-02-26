@@ -72,3 +72,8 @@ src/main/java/com/sdg/graph/Neo4jConfig.java
 *.log
 logs/
 temp/
+
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
