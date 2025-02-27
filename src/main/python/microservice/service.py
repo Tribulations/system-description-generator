@@ -23,7 +23,12 @@ def multiply():
 def llm():
     data = request.get_json()
     text_input = data.get('prompt', '')
-    result = llm_prompt(text_input)
+
+    print(f"PythonService: Using model {data.get('model', 'bloom')}")
+
+    model_name = data.get('model', 'bloom')  # Default to the fastest model
+    result = llm_prompt(text_input, model_name)
+
     return jsonify({"message": result})
 
 if __name__ == '__main__':

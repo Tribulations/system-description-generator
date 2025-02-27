@@ -7,7 +7,9 @@ public class Main {
     public static void main(String[] args) throws Exception {
         // knowledgeGraphServiceTest();
         PythonClient pythonClient = new PythonClient();
-        System.out.println(pythonClient.llm("What is the capital of France?"));
+        // System.out.println(pythonClient.llm("Is USA a country?",
+        // "bloom").getString("message"));
+        System.out.println(pythonClient.llm("What is Java?", "starcoder-3b").getString("message"));
     }
 
     private static void knowledgeGraphServiceTest() {

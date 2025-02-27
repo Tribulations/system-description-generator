@@ -16,18 +16,7 @@ import org.json.JSONObject;
  * before running this test.
  */
 class PythonClientTest {
-    /**
-     * Tests that the LLM service returns a JSONObject with a "message" key.
-     * 
-     * @throws Exception
-     */
-    @Test
-    void shouldGetJSONObjectFromLlmWithMessageKey() throws Exception {
-        PythonClient client = new PythonClient();
-        JSONObject result = client.llm("What is the capital of France?");
-        assertTrue(result.has("message"));
-        assertFalse(result.has("non-existant-key"));
-    }
+    private final PythonClient client = new PythonClient();
 
     /**
      * Simple initial test to test the PythonClient class.
@@ -36,9 +25,61 @@ class PythonClientTest {
      */
     @Test
     void shouldMultiply() throws Exception {
-        PythonClient client = new PythonClient();
         JSONObject result = client.multiply(2, 3);
+
         assertEquals("The result of 2 * 3 is 6", result.getString("message"));
         assertNotEquals("This string is not the result", result.getString("message"));
+    }
+
+    /**
+     * Tests that the LLM service returns a JSONObject with a "message" key.
+     * Uses the bloom model. This test should go pretty fast.
+     * 
+     * @throws Exception
+     */
+    @Test
+    void testBloomModel() throws Exception {
+        String prompt = "What is the capital of France?";
+        JSONObject result = client.llm(prompt, "bloom");
+
+        assertTrue(result.has("message"));
+
+        String unPredictableAnswer = result.getString("message");
+        assertFalse(unPredictableAnswer.isEmpty());
+    }
+
+    /**
+     * Tests that the LLM service returns a JSONObject with a "message" key.
+     * Uses the starcoder-3b model. This test can take a couple of minutes.
+     * 
+     * @throws Exception
+     */
+    @Test
+    void testStarCoder3bModel() throws Exception {
+        String prompt = "What is Python?";
+        JSONObject result = client.llm(prompt, "starcoder-3b");
+
+        assertTrue(result.has("message"));
+
+        String unPredictableAnswer = result.getString("message");
+        assertFalse(unPredictableAnswer.isEmpty());
+    }
+
+    /**
+     * Tests that the LLM service returns a JSONObject with a "message" key.
+     * Uses the starcoder-15b model. This test can take a while to run (a couple of
+     * minutes or more).
+     * 
+     * @throws Exception
+     */
+    @Test
+    void testStarCoder15bModel() throws Exception {
+        String prompt = "What is Python?";
+        JSONObject result = client.llm(prompt, "starcoder-15b");
+
+        assertTrue(result.has("message"));
+
+        String unPredictableAnswer = result.getString("message");
+        assertFalse(unPredictableAnswer.isEmpty());
     }
 }

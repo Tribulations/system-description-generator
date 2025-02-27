@@ -17,16 +17,19 @@ public class PythonClient {
     /**
      * Gets an answer from the LLM service.
      * 
-     * @param prompt
+     * @param prompt The prompt to send to the LLM
+     * @param model  The model to use (one of: "bloom", "starcoder-3b",
+     *               "starcoder-15b")
      * @return The answer from the LLM service as a JSONObject with a single
      *         "message" key containing the LLM answer as its value.
      * @throws Exception
      */
-    public JSONObject llm(final String prompt) throws Exception {
+    public JSONObject llm(final String prompt, final String model) throws Exception {
         final String endpoint = URL + "/llm";
 
         JSONObject data = new JSONObject();
         data.put("prompt", prompt);
+        data.put("model", model);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))

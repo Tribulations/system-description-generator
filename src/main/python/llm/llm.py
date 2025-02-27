@@ -4,14 +4,21 @@ from transformers import pipeline
 '''
 Generate text 
 '''
-def llm_prompt(input):
-    # Tested models
-    model1 = "bigscience/bloom-1b1"
-    model2 = "bigcode/starcoder2-3b"
-    model3 = "bigcode/starcoder2-15b"
+# Tested models
+MODELS = {
+    "bloom": "bigscience/bloom-1b1",
+    "starcoder-3b": "bigcode/starcoder2-3b",
+    "starcoder-15b": "bigcode/starcoder2-15b"
+}
+
+def llm_prompt(input, model_name="bloom"):
+    # Default to bloom as it is the fastest model
+    model = MODELS.get(model_name, MODELS["bloom"])
+
+    print(f"PythonLLMFunction: Model set to {model_name}")
 
     # Load pipeline
-    pipe = pipeline("text-generation", model=model1)
+    pipe = pipeline("text-generation", model=model)
 
     # Generate text
     result = pipe(input, max_length=50)
