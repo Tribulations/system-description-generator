@@ -14,6 +14,8 @@ public class PythonClient {
     // TODO use RxJava in a suitable place for interaction with the Python micro
     // service!
 
+    // TODO handle error we get when microservice not running
+
     /**
      * Gets an answer from the LLM service.
      * 
@@ -66,5 +68,67 @@ public class PythonClient {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         return new JSONObject(response.body());
+    }
+
+    public static void main(String[] args) throws Exception {
+        testLlm();
+    }
+
+    /**
+     * Pass a prompt to the LLM service and measure the time it takes to get a
+     * response.
+     * 
+     * The src/main/python/microservice/service.py must be running.
+     * 
+     * Received response after a test run of this method:
+     * UserAuthenticationModule is a component that handles user authentication and
+     * authorization. It interacts with the DatabaseConnector, LoggingService,
+     * TokenManager, AuditSystem, and NotificationService components. It implements
+     * the OAuth2.0Protocol and TwoFactorAuthentication protocols. It sends events
+     * to the AuditSystem and NotificationService components. It has the
+     * ConfigurationManager, EncryptionLibrary, and DatabaseConnector dependencies.
+     * 
+     * @throws Exception
+     */
+    private static void testLlm() throws Exception {
+        PythonClient pythonClient = new PythonClient();
+        long start = System.currentTimeMillis();
+
+        // System.out.println(pythonClient.llm("Is USA a country?",
+        // "bloom").getString("message"));
+
+        String topLevelNode = """
+                {
+                  "UserAuthenticationModule": {
+                    "calls": ["DatabaseConnector", "LoggingService", "TokenManager"],
+                    "implements": ["OAuth2.0Protocol", "TwoFactorAuthentication"],
+                    "sends_events_to": ["AuditSystem", "NotificationService"],
+                    "dependencies": ["ConfigurationManager", "EncryptionLibrary"]
+                  }
+                }
+                """;
+
+        String promptTemplate = """
+                Given the following knowledge graph in JSON format:
+
+                %s
+
+                Provide a short high-level description of this component, explaining:
+                1. What other components it interacts with
+                2. What protocols it implements
+                3. What events it triggers
+                4. What dependencies it has
+                5. Its likely overall responsibility in the system architecture
+
+                Description:
+                """;
+
+        String finalPrompt = String.format(promptTemplate, topLevelNode);
+
+        System.out.println(pythonClient.llm(finalPrompt,
+                "starcoder-3b").getString("message"));
+
+        long end = System.currentTimeMillis();
+        System.out.println("Time taken: " + ((end - start) / 1000) + " seconds");
     }
 }

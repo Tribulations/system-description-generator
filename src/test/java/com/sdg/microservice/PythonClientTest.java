@@ -50,7 +50,7 @@ class PythonClientTest {
 
     /**
      * Tests that the LLM service returns a JSONObject with a "message" key.
-     * Uses the starcoder-3b model. This test can take a couple of minutes.
+     * Uses the starcoder-3b model. This test can take up to a minute to complete.
      * 
      * @throws Exception
      */
@@ -68,7 +68,7 @@ class PythonClientTest {
     /**
      * Tests that the LLM service returns a JSONObject with a "message" key.
      * Uses the starcoder-15b model. This test can take a while to run (a couple of
-     * minutes or more).
+     * minutes or more). Also uses a lot of RAM.
      * 
      * @throws Exception
      */

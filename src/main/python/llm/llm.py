@@ -1,5 +1,10 @@
 # Use a pipeline as a high-level helper
 from transformers import pipeline
+import torch
+
+# Specify GPU device if available, otherwise use CPU
+# Make sure you have the appropriate CUDA toolkit and GPU drivers installed for PyTorch to recognize and use your GPU.
+device = 0 if torch.cuda.is_available() else -1  # 0 means first GPU, -1 means CPU
 
 '''
 Generate text 
@@ -18,10 +23,10 @@ def llm_prompt(input, model_name="bloom"):
     print(f"PythonLLMFunction: Model set to {model_name}")
 
     # Load pipeline
-    pipe = pipeline("text-generation", model=model)
+    pipe = pipeline("text-generation", model=model, device=device, torch_dtype=torch.float16)
 
     # Generate text
-    result = pipe(input, max_length=50)
+    result = pipe(input, max_length=400)
     answer = result[0]['generated_text']
     
     return answer
