@@ -55,11 +55,15 @@ public class KnowledgeGraphService implements AutoCloseable {
     public static void main(String... args) {
         try (KnowledgeGraphService graphService = new KnowledgeGraphService()) {
 
+            String filePath = "src/main/java/com/sdg/graph/TestClass.java";
             // // Clean the database first
             graphService.deleteAllData();
 
             // // Insert the knowledge graph into the database
-            graphService.insertToGraphDatabase("src/main/java/com/sdg/graph/TestClass.java");
+            graphService.insertToGraphDatabase(filePath);
+
+            // // Print the knowledge graph
+            graphService.printKnowledgeGraph(filePath);
         }
     }
 }

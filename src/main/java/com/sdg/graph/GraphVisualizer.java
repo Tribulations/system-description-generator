@@ -13,25 +13,25 @@ public class GraphVisualizer {
         
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(classDecl -> {
             String className = classDecl.getNameAsString();
-            LoggerUtil.debug(getClass(), "Visualizing class: {}", className);
+            LoggerUtil.info(getClass(), "Visualizing class: {}", className);
 
             classDecl.getMethods().forEach(method -> {
                 String methodName = method.getNameAsString();
-                LoggerUtil.debug(getClass(), "Visualizing method: {}.{}", className, methodName);
+                LoggerUtil.info(getClass(), "Visualizing method: {}.{}", className, methodName);
 
                 method.findAll(MethodCallExpr.class).forEach(methodCall -> {
                     String methodCallName = methodCall.getNameAsString();
-                    LoggerUtil.debug(getClass(), "Method call: {} -> {}", methodName, methodCallName);
+                    LoggerUtil.info(getClass(), "Method call: {} -> {}", methodName, methodCallName);
                 });
 
                 method.findAll(IfStmt.class).forEach(ifStmt -> {
                     String condition = ifStmt.getCondition().toString();
-                    LoggerUtil.debug(getClass(), "Control flow (if): {}", condition);
+                    LoggerUtil.info(getClass(), "Control flow (if): {}", condition);
                 });
 
                 method.findAll(ForStmt.class).forEach(forStmt -> {
                     String condition = forStmt.getCompare().toString();
-                    LoggerUtil.debug(getClass(), "Control flow (for): {}", condition);
+                    LoggerUtil.info(getClass(), "Control flow (for): {}", condition);
                 });
             });
         });
