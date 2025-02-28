@@ -1,26 +1,63 @@
-package com.sdg.inputHandler;
+package com.sdg.model;
 
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
+import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
+/**
+ * Handles file input processing, including reading Java files from directories, individual files,
+ * and cloning Git repositories to extract Java source files.
+ *
+ * @author Suraj Karki
+ */
 public class InputHandler {
-    // TODO we have logger util
+    // TODO obs we have logger util
     private static final Logger logger = LoggerFactory.getLogger(InputHandler.class);
 
     /**
-     * Processes input from a file, directory, or Git repository.
-     * @param inputPath The path to a Java file, directory, or Git repository URL.
-     * @return A list of Java source file paths.
+     * Processes files reactively by reading and preprocessing each Java file found in the input path.
+     *
+     * @param inputPath The path to a file, directory, or Git repository.
+     * @return An Observable emitting ProcessingResult for each Java file.
      */
-    public List<Path> processInput(String inputPath) {
+    public Observable<ProcessingResult> processFilesRx(String inputPath) {
+        return processInputRx(inputPath).flattenAsObservable(paths -> paths)
+                .flatMap(file -> readAndPreprocessFileRx(file)
+                        .map(content ->
+                                new ProcessingResult(file, content.length(),
+                                        content)).toObservable());
+    }
+
+    /**
+     * Processes the given input path reactively and returns a list of Java files found.
+     *
+     * @param inputPath The file path or repository URL.
+     * @return A Single emitting a list of Java file paths.
+     */
+    private Single<List<Path>> processInputRx(String inputPath) {
+        return Single.fromCallable(() -> processInput(inputPath)).subscribeOn(Schedulers.io());
+    }
+
+    /**
+     * Determines whether the input is a directory, a single Java file, or a Git repository,
+     * then collects the relevant Java source files.
+     *
+     * @param inputPath The path to a file, directory, or Git repository.
+     * @return A list of Java file paths.
+     */
+    private List<Path> processInput(String inputPath) {
         if (inputPath == null || inputPath.isBlank()) {
             logger.error("Provided input path is null or empty. Aborting processing.");
             return new ArrayList<>();
@@ -28,18 +65,17 @@ public class InputHandler {
 
         List<Path> javaFiles = new ArrayList<>();
 
-        // Handle Git repository separately
+        // Check if input is a Git repository URL
         if (inputPath.startsWith("https://") || inputPath.startsWith("git@")) {
             logger.info("Detected Git repository. Cloning from: {}", inputPath);
             Path repoPath = cloneGitRepository(inputPath);
             if (repoPath != null) {
                 javaFiles.addAll(collectJavaFiles(repoPath));
             }
-            return javaFiles; // Return early to avoid further file path processing
+            return javaFiles;
         }
 
-        Path path = Paths.get(inputPath); // This would cause an error if inputPath is a Git URL
-
+        Path path = Paths.get(inputPath);
         if (Files.isDirectory(path)) {
             logger.info("Processing directory: {}", inputPath);
             javaFiles.addAll(collectJavaFiles(path));
@@ -49,49 +85,47 @@ public class InputHandler {
         } else {
             logger.error("Invalid input path: {}. Expected a Java file, directory, or Git repository.", inputPath);
         }
-
         return javaFiles;
     }
 
     /**
-     * Collects all Java files recursively from a given directory.
-     * @param dirPath The directory to search for Java files.
+     * Recursively collects Java files from the given directory.
+     *
+     * @param rootDir The root directory to scan.
      * @return A list of Java file paths.
      */
-    private List<Path> collectJavaFiles(Path dirPath) {
+    private List<Path> collectJavaFiles(Path rootDir) {
         List<Path> javaFiles = new ArrayList<>();
-        try {
-            Files.walkFileTree(dirPath, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (file.toString().endsWith(".java")) {
-                        logger.debug("Identified Java source file: {}", file);
-                        javaFiles.add(file);
-                    } else {
-                        logger.warn("Ignoring non-Java file: {}", file);
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException e) {
-            logger.error("Failed to read directory: {}. Ensure it exists and is accessible.", dirPath, e);
+
+        if (rootDir == null || !Files.exists(rootDir) || !Files.isDirectory(rootDir)) {
+            logger.error("Invalid directory: {}", rootDir);
+            return javaFiles;
         }
+
+        try (Stream<Path> paths = Files.walk(rootDir).parallel()) {
+            paths.filter(Files::isRegularFile)  // Select only files, not directories
+                    .filter(file -> file.toString().endsWith(".java")) // Only Java files
+                    .forEach(file -> {
+                        logger.debug("Identified Java file: {}", file);
+                        javaFiles.add(file);
+                    });
+        } catch (IOException e) {
+            logger.error("Failed to scan directory {}: {}", rootDir, e.getMessage());
+        }
+
         return javaFiles;
     }
 
     /**
-     * Clones a Git repository and returns the local path.
+     * Clones a Git repository into a temporary directory.
+     *
      * @param repoUrl The URL of the Git repository.
-     * @return The local directory path of the cloned repository.
+     * @return The local path to the cloned repository or null if cloning fails.
      */
     private Path cloneGitRepository(String repoUrl) {
-        Path tempDir;
         try {
-            tempDir = Files.createTempDirectory("sdg-repo");
-            Git.cloneRepository()
-                    .setURI(repoUrl)
-                    .setDirectory(tempDir.toFile())
-                    .call();
+            Path tempDir = Files.createTempDirectory("sdg-repo");
+            Git.cloneRepository().setURI(repoUrl).setDirectory(tempDir.toFile()).call();
             logger.info("Repository cloned successfully: {}", tempDir);
             return tempDir;
         } catch (IOException | GitAPIException e) {
@@ -101,42 +135,65 @@ public class InputHandler {
     }
 
     /**
-     * Reads and preprocesses Java source files.
+     * Reads and preprocesses the content of a file reactively.
+     * If an error occurs, an empty string is returned.
+     *
      * @param filePath The path to the Java file.
-     * @return The normalized source code as a string.
+     * @return A Single emitting the file's processed content.
      */
-    public String readAndPreprocessFile(Path filePath) {
+    private Single<String> readAndPreprocessFileRx(Path filePath) {
+        return Single.fromCallable(() ->
+                readAndPreprocessFile(filePath)).onErrorReturn(throwable -> {
+            logger.warn("Failed to read file: {} | Error: {}", filePath, throwable.getMessage());
+            return "";
+        });
+    }
+
+    /**
+     * Reads a file's content, removes excessive whitespace, and trims the result.
+     * If an error occurs, an empty string is returned.
+     *
+     * @param filePath The path to the Java file.
+     * @return The preprocessed file content.
+     */
+    private String readAndPreprocessFile(Path filePath) {
         if (filePath == null || !Files.exists(filePath)) {
             logger.error("File does not exist: {}", filePath);
             return "";
         }
-
         try {
-            String content = Files.readString(filePath, StandardCharsets.UTF_8);
-            if (content.isBlank()) {
-                logger.warn("File is empty: {}", filePath);
-                return "";
+            return Files.readString(filePath, StandardCharsets.UTF_8).replaceAll("\\s+", " ").trim();
+        } catch (MalformedInputException e) {
+            logger.warn("Malformed input detected in file: {}. Trying " +
+                    "ISO-8859-1 as fallback.\n", filePath);
+            try {
+                return Files.readString(filePath,
+                        StandardCharsets.ISO_8859_1).replaceAll("\\s+", " ").trim();
+            } catch (IOException ex) {
+                logger.error("Failed to read file with fallback encoding: {}", filePath, ex);
             }
-            return content.replaceAll("\\s+", " ").trim(); // Normalize whitespace
         } catch (IOException e) {
             logger.error("Failed to read file: {}", filePath, e);
-            return "";
         }
+        return "";
     }
 
-    public static void main(String[] args) {
-        InputHandler inputHandler = new InputHandler();
-
-        // Test with a Git repository
-        String repoUrl = "https://github.com/kishanrajput23/Java-Projects-Collections.git"; //repository URL
-        List<Path> javaFiles = inputHandler.processInput(repoUrl);
-        System.out.println("Java files from Git repo: " + javaFiles);
-
-        // Read and preprocess a Java file
-        if (!javaFiles.isEmpty()) {
-            String fileContent = inputHandler.readAndPreprocessFile(javaFiles.getFirst());
-            System.out.println("length of file content: \n" + fileContent.length());
-            System.out.println("Processed content: \n" + fileContent);
-        }
+    /**
+     * Represents the result of processing a Java file. Only for debug purpose!
+     */
+    public record ProcessingResult(Path file, int contentLength,
+                                   String processedContent) {
     }
+
+//    public static void main(String[] args) {
+//        InputHandler inputHandler = new InputHandler();
+//        String repoUrl = "https://github.com/kishanrajput23/Java-Projects-Collections.git";
+//
+//        inputHandler.processFilesRx(repoUrl)
+//                .blockingForEach(result -> {
+//                    System.out.println("File: " + result.file());
+//                    System.out.println("Length of file content: " + result.contentLength());
+//                    System.out.println("Processed content: \n" + result.processedContent());
+//                });
+//    }
 }
