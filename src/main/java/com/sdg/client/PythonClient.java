@@ -8,6 +8,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
+/**
+ * Client for interacting with the Python microservice to retrieve answers from LLM.
+ * 
+ * @author Joakim Colloz
+ * @version 1.0
+ */
 public class PythonClient {
     private final HttpClient client = HttpClient.newHttpClient();
     private static final String URL = "http://localhost:5000";
