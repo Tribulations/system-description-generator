@@ -8,8 +8,17 @@ import com.sdg.logging.LoggerUtil;
 
 import static org.neo4j.driver.Values.parameters;
 
+/**
+ * Handles operations related to storing and retrieving data from the Neo4j graph database.
+ * 
+ * Uses Neo4j's Java driver to execute Cypher queries defined in {@link CypherConstants}.
+ * 
+ * @author Joakim Colloz
+ * @version 1.0
+ * @see CypherConstants
+ */
 public class GraphDatabaseOperations implements AutoCloseable {
-    // TODO: Replace usage of this class with depreacted methods in this class
+    // TODO: Replace usage of depreacted methods in this class
 
     private final Driver driver;
 
@@ -24,6 +33,11 @@ public class GraphDatabaseOperations implements AutoCloseable {
         LoggerUtil.debug(getClass(), "Neo4j driver initialized with URI: {}", Neo4jConfig.DB_URI);
     }
 
+    /**
+     * Creates a node representing a Java class in the graph database.
+     * 
+     * @param className the name of the class to create
+     */
     public void createClassNode(String className) {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
@@ -34,6 +48,12 @@ public class GraphDatabaseOperations implements AutoCloseable {
         }
     }
 
+    /**
+     * Creates a node representing a method and connects it to its containing class.
+     * 
+     * @param className the name of the class containing the method
+     * @param methodName the name of the method to create
+     */
     public void createMethodNode(String className, String methodName) {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
@@ -46,6 +66,12 @@ public class GraphDatabaseOperations implements AutoCloseable {
         }
     }
 
+    /**
+     * Creates a node representing a method call and connects it to the calling method.
+     * 
+     * @param methodName the name of the method making the call
+     * @param methodCallName the name of the method being called
+     */
     public void createMethodCallNode(String methodName, String methodCallName) {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
@@ -58,6 +84,13 @@ public class GraphDatabaseOperations implements AutoCloseable {
         }
     }
 
+    /**
+     * Creates a node representing a control flow statement and connects it to its containing method.
+     * 
+     * @param methodName the name of the method containing the control flow
+     * @param type the type of control flow (e.g., "if", "for")
+     * @param condition the condition or expression of the control flow
+     */
     public void createControlFlowNode(String methodName, String type, String condition) {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
@@ -71,6 +104,11 @@ public class GraphDatabaseOperations implements AutoCloseable {
         }
     }
 
+    /**
+     * Deletes all data from the graph database.
+     * 
+     * @throws RuntimeException if there is an error during deletion
+     */
     public void deleteAllData() {
         try (var session = driver.session()) {
             LoggerUtil.warn(getClass(), "Deleting all data from the database");
@@ -86,6 +124,9 @@ public class GraphDatabaseOperations implements AutoCloseable {
         }
     }
 
+    /**
+     * Closes the database connection.
+     */
     @Override
     public void close() {
         LoggerUtil.info(getClass(), "Closing Neo4j database connection");

@@ -7,7 +7,21 @@ import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.sdg.logging.LoggerUtil;
 
+/**
+ * Visualizes the structure of Java code by traversing its Abstract Syntax Tree (AST).
+ * This class logs the class and method names as it traverses the AST.
+ * 
+ * @author Joakim Colloz
+ * @version 1.0
+ */
 public class GraphVisualizer {
+    
+    /**
+     * Visualizes the structure of Java code by traversing its Abstract Syntax Tree (AST).
+     * 
+     * @param cu the root compilation unit to start visualization from
+     */
+
     public void visualize(CompilationUnit cu) {
         LoggerUtil.info(getClass(), "Starting graph visualization");
         

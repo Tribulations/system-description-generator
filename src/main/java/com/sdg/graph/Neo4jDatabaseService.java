@@ -9,6 +9,9 @@ import org.neo4j.driver.Session;
 
 /**
  * Class to interact with a Neo4j database.
+ * 
+ * @author Joakim Colloz
+ * @version 1.0
  */
 public class Neo4jDatabaseService implements AutoCloseable {
     private final Driver driver;

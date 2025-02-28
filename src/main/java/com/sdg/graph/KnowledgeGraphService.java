@@ -12,6 +12,9 @@ import com.sdg.ast.ASTAnalyzer;
  * - {@link com.sdg.ast.ASTAnalyzer}
  * - {@link com.sdg.graph.GraphDatabaseOperations}
  * - {@link com.sdg.graph.GraphVisualizer}
+ * 
+ * @author Joakim Colloz
+ * @version 1.0
  */
 public class KnowledgeGraphService implements AutoCloseable {
     private final JavaFileParser parser;
