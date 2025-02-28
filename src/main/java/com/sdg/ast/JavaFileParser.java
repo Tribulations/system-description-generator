@@ -7,7 +7,23 @@ import com.sdg.logging.LoggerUtil;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
+/**
+ * Parses Java source files into Abstract Syntax Trees (AST) using JavaParser.
+ * This class provides a simple interface to parse Java files into {@link CompilationUnit}
+ * objects that can be analyzed by {@link ASTAnalyzer}.
+ * 
+ * Handles file reading and parsing errors with appropriate logging and exception handling.
+ * 
+ * @author Joakim Colloz
+ * @version 1.0
+ */
 public class JavaFileParser {
+    /**
+     * Parses a Java file into an Abstract Syntax Tree (AST).
+     * 
+     * @param filePath The path to the Java file to be parsed.
+     * @return A CompilationUnit representing the parsed Java file.
+     */
     public CompilationUnit parseFile(String filePath) {
         LoggerUtil.debug(getClass(), "Parsing Java file: {}", filePath);
         try {

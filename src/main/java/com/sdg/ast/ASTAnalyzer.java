@@ -9,12 +9,28 @@ import com.github.javaparser.ast.stmt.IfStmt;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.graph.GraphDatabaseOperations;
 
+/**
+ * Analyzes Java Abstract Syntax Trees (AST) and stores the analysis results in a graph database.
+ * This class can currently traverse the AST to identify:
+ * - Classes and their methods
+ * - Method calls between different methods
+ * 
+ * The analysis results are stored using {@link GraphDatabaseOperations}.
+ * 
+ * @author Joakim Colloz
+ * @version 1.0
+ */
 public class ASTAnalyzer {
     private final GraphDatabaseOperations dbOps;
 
     public ASTAnalyzer(GraphDatabaseOperations dbOps) {
         this.dbOps = dbOps;
     }
+    
+    /**
+     * Analyze the given AST and store the analysis results in the graph database.
+     * @param cu the AST to analyze
+     */
 
     public void analyzeAndStore(CompilationUnit cu) {
         LoggerUtil.info(getClass(), "Starting AST analysis");
