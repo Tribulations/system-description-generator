@@ -1,7 +1,6 @@
 package com.sdg.client;
 
 import org.json.JSONObject;
-import org.slf4j.Logger;
 import com.sdg.logging.LoggerUtil;
 
 import java.net.URI;
@@ -10,7 +9,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 public class PythonClient {
-    private static final Logger logger = LoggerUtil.getLogger(PythonClient.class);
     private final HttpClient client = HttpClient.newHttpClient();
     private static final String URL = "http://localhost:5000";
 
@@ -30,7 +28,7 @@ public class PythonClient {
      * @throws Exception
      */
     public JSONObject llm(final String prompt, final String model) throws Exception {
-        logger.info("Sending LLM request with model: {}", model);
+        LoggerUtil.info(getClass(), "Sending LLM request with model: {}", model);
         final String endpoint = URL + "/llm";
 
         JSONObject data = new JSONObject();
@@ -43,9 +41,9 @@ public class PythonClient {
                 .POST(HttpRequest.BodyPublishers.ofString(data.toString()))
                 .build();
 
-        logger.debug("Sending request to endpoint: {}", endpoint);
+        LoggerUtil.debug(getClass(), "Sending request to endpoint: {}", endpoint);
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        logger.debug("Received response with status code: {}", response.statusCode());
+        LoggerUtil.debug(getClass(), "Received response with status code: {}", response.statusCode());
 
         return new JSONObject(response.body());
     }
@@ -59,7 +57,7 @@ public class PythonClient {
      * @throws Exception
      */
     public JSONObject multiply(final int a, final int b) throws Exception {
-        logger.info("Multiplying numbers: {} and {}", a, b);
+        LoggerUtil.info(getClass(), "Multiplying numbers: {} and {}", a, b);
         final String endpoint = URL + "/multiply";
 
         JSONObject data = new JSONObject();
@@ -72,9 +70,9 @@ public class PythonClient {
                 .POST(HttpRequest.BodyPublishers.ofString(data.toString()))
                 .build();
 
-        logger.debug("Sending request to endpoint: {}", endpoint);
+        LoggerUtil.debug(getClass(), "Sending request to endpoint: {}", endpoint);
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        logger.debug("Received response with status code: {}", response.statusCode());
+        LoggerUtil.debug(getClass(), "Received response with status code: {}", response.statusCode());
 
         return new JSONObject(response.body());
     }

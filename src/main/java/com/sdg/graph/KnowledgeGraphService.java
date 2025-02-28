@@ -1,7 +1,6 @@
 package com.sdg.graph;
 
 import com.github.javaparser.ast.CompilationUnit;
-import org.slf4j.Logger;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.ast.JavaFileParser;
 import com.sdg.ast.ASTAnalyzer;
@@ -15,15 +14,13 @@ import com.sdg.ast.ASTAnalyzer;
  * - {@link com.sdg.graph.GraphVisualizer}
  */
 public class KnowledgeGraphService implements AutoCloseable {
-    private static final Logger logger = LoggerUtil.getLogger(KnowledgeGraphService.class);
-
     private final JavaFileParser parser;
     private final GraphDatabaseOperations dbOps;
     private final ASTAnalyzer analyzer;
     private final GraphVisualizer visualizer;
 
     public KnowledgeGraphService() {
-        logger.info("Initializing KnowledgeGraphService");
+        LoggerUtil.info(getClass(), "Initializing KnowledgeGraphService");
         this.parser = new JavaFileParser();
         this.dbOps = new GraphDatabaseOperations();
         this.analyzer = new ASTAnalyzer(dbOps);
@@ -31,13 +28,13 @@ public class KnowledgeGraphService implements AutoCloseable {
     }
 
     public void printKnowledgeGraph(String filePath) {
-        logger.info("Printing knowledge graph for file: {}", filePath);
+        LoggerUtil.info(getClass(), "Printing knowledge graph for file: {}", filePath);
         CompilationUnit cu = parser.parseFile(filePath);
         visualizer.visualize(cu);
     }
 
     public void insertToGraphDatabase(String filePath) {
-        logger.info("Inserting knowledge graph to database for file: {}", filePath);
+        LoggerUtil.info(getClass(), "Inserting knowledge graph to database for file: {}", filePath);
         CompilationUnit cu = parser.parseFile(filePath);
         analyzer.analyzeAndStore(cu);
     }
@@ -51,7 +48,7 @@ public class KnowledgeGraphService implements AutoCloseable {
 
     @Override
     public void close() {
-        logger.info("Closing KnowledgeGraphService");
+        LoggerUtil.info(getClass(), "Closing KnowledgeGraphService");
         dbOps.close();
     }
 
