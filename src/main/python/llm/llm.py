@@ -23,7 +23,7 @@ def llm_prompt(input, model_name="bloom"):
     print(f"PythonLLMFunction: Model set to {model_name}")
 
     # Load pipeline
-    pipe = pipeline("text-generation", model=model, device=device, torch_dtype=torch.float16)
+    pipe = pipeline("text-generation", model=model, device=device, torch_dtype=torch.float16, return_full_text=False)
 
     # Generate text
     result = pipe(input, max_length=400)
