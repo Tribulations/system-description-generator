@@ -34,6 +34,8 @@ public class PythonClient {
      * @throws Exception
      */
     public JSONObject llm(final String prompt, final String model) throws Exception {
+        long start = System.currentTimeMillis();
+
         LoggerUtil.info(getClass(), "Sending LLM request with model: {}", model);
         final String endpoint = URL + "/llm";
 
@@ -51,6 +53,10 @@ public class PythonClient {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         LoggerUtil.debug(getClass(), "Received response with status code: {}", response.statusCode());
 
+        LoggerUtil.info(getClass(), "Received response: {}", response.body());
+        long duration = System.currentTimeMillis() - start;
+        LoggerUtil.info(getClass(), "Time taken to get a response from LLM: {} seconds", duration / 1000.0);
+        
         return new JSONObject(response.body());
     }
 
