@@ -3,6 +3,7 @@ package com.sdg.graph;
 /**
  * Constants class containing all Cypher queries used in the application.
  * Each query is documented with its purpose and expected parameters.
+ * All node creation queries use MERGE to ensure duplicates are not created.
  */
 public final class CypherConstants {
     private CypherConstants() {
@@ -48,4 +49,27 @@ public final class CypherConstants {
     /** Query to delete all nodes and relationships */
     public static final String DELETE_ALL = 
         "MATCH (n) DETACH DELETE n";
+
+    /** Query to connect Class to its parent class. Parameters: className, parentName */
+    public static final String CONNECT_CLASS_INHERITANCE = 
+        "MATCH (c:Class {name: $className}), (p:Class {name: $parentName}) " +
+        "MERGE (c)-[:EXTENDS]->(p)";
+
+    /** Query to connect Class to implemented interface. Parameters: className, interfaceName */
+    public static final String CONNECT_INTERFACE_IMPLEMENTATION = 
+        "MATCH (c:Class {name: $className}), (i:Interface {name: $interfaceName}) " +
+        "MERGE (c)-[:IMPLEMENTS]->(i)";
+
+    /** Query to create Interface node. Parameters: name */
+    public static final String CREATE_INTERFACE = 
+        "MERGE (i:Interface {name: $name})";
+
+    /** Query to create ClassField node. Parameters: name, type, visibility */
+    public static final String CREATE_CLASS_FIELD = 
+        "MERGE (f:ClassField {name: $name, type: $type, visibility: $visibility})";
+
+    /** Query to connect ClassField to its Class. Parameters: className, fieldName */
+    public static final String CONNECT_FIELD_TO_CLASS = 
+        "MATCH (c:Class {name: $className}), (f:ClassField {name: $fieldName}) " +
+        "MERGE (c)-[:HAS_FIELD]->(f)";
 }
