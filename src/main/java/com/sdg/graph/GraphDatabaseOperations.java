@@ -105,6 +105,62 @@ public class GraphDatabaseOperations implements AutoCloseable {
     }
 
     /**
+     * Creates a relationship representing class inheritance.
+     * 
+     * @param className the name of the child class
+     * @param parentName the name of the parent class
+     */
+    public void createInheritanceRelationship(String className, String parentName) {
+        try (Session session = driver.session()) {
+            session.writeTransaction(tx -> {
+                LoggerUtil.debug(getClass(), "Creating inheritance relationship: {} extends {}", className, parentName);
+                tx.run(CypherConstants.CONNECT_CLASS_INHERITANCE,
+                        parameters("className", className, "parentName", parentName));
+                return null;
+            });
+        }
+    }
+
+    /**
+     * Creates an interface node and connects it to the implementing class.
+     * 
+     * @param className the name of the implementing class
+     * @param interfaceName the name of the interface being implemented
+     */
+    public void createInterfaceImplementation(String className, String interfaceName) {
+        try (Session session = driver.session()) {
+            session.writeTransaction(tx -> {
+                LoggerUtil.debug(getClass(), "Creating interface implementation: {} implements {}", className, interfaceName);
+                tx.run(CypherConstants.CREATE_INTERFACE, parameters("name", interfaceName));
+                tx.run(CypherConstants.CONNECT_INTERFACE_IMPLEMENTATION,
+                        parameters("className", className, "interfaceName", interfaceName));
+                return null;
+            });
+        }
+    }
+
+    /**
+     * Creates a node representing a class field and connects it to its containing class.
+     * 
+     * @param className the name of the class containing the field
+     * @param fieldName the name of the field
+     * @param fieldType the type of the field
+     * @param visibility the access modifier of the field (public, private, protected or package-private)
+     */
+    public void createClassField(String className, String fieldName, String fieldType, String visibility) {
+        try (Session session = driver.session()) {
+            session.writeTransaction(tx -> {
+                LoggerUtil.debug(getClass(), "Creating class field: {}.{} ({} {})", className, fieldName, visibility, fieldType);
+                tx.run(CypherConstants.CREATE_CLASS_FIELD,
+                        parameters("name", fieldName, "type", fieldType, "visibility", visibility));
+                tx.run(CypherConstants.CONNECT_FIELD_TO_CLASS,
+                        parameters("className", className, "fieldName", fieldName));
+                return null;
+            });
+        }
+    }
+
+    /**
      * Deletes all data from the graph database.
      * 
      * @throws RuntimeException if there is an error during deletion
