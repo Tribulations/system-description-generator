@@ -11,12 +11,18 @@ import com.sdg.graph.GraphDatabaseOperations;
 
 /**
  * Analyzes Java Abstract Syntax Trees (AST) and stores the analysis results in a graph database.
+ * JavaParser is used to parse the source code into an AST.
+ *
  * This class can currently traverse the AST to identify:
  * - Classes and their methods
  * - Method calls between different methods
+ * - Inheritance
+ * - Interface implementations
+ * - Class fields
  * 
  * The analysis results are stored using {@link GraphDatabaseOperations}.
- * 
+ *
+ * @see <a href="https://javadoc.io/doc/com.github.javaparser/javaparser-core/latest/index.html">JavaParser Documentation</a>
  * @author Joakim Colloz
  * @version 1.0
  */
@@ -40,6 +46,35 @@ public class ASTAnalyzer {
             LoggerUtil.debug(getClass(), "Analyzing class: {}", className);
             dbOps.createClassNode(className);
 
+            // Analyze inheritance
+            classDecl.getExtendedTypes().forEach(extendedType -> {
+                String parentName = extendedType.getNameAsString();
+                LoggerUtil.debug(getClass(), "Found inheritance: {} extends {}", className, parentName);
+                dbOps.createClassNode(parentName); // Creates a class node if it does not already exist
+                dbOps.createInheritanceRelationship(className, parentName);
+            });
+
+            // Analyze interface implementations
+            classDecl.getImplementedTypes().forEach(implementedType -> {
+                String interfaceName = implementedType.getNameAsString();
+                LoggerUtil.debug(getClass(), "Found interface implementation: {} implements {}", className, interfaceName);
+                dbOps.createInterfaceImplementation(className, interfaceName);
+            });
+
+            // Analyze fields
+            classDecl.getFields().forEach(field -> {
+                String fieldType = field.getElementType().asString();
+                String accessModifier = field.getModifiers().isEmpty() ? "package-private" :
+                                  field.getModifiers().get(0).toString().toLowerCase();
+                
+                field.getVariables().forEach(var -> {
+                    String fieldName = var.getNameAsString();
+                    LoggerUtil.debug(getClass(), "Found field: {}.{} ({} {})", className, fieldName, accessModifier, fieldType);
+                    dbOps.createClassField(className, fieldName, fieldType, accessModifier);
+                });
+            });
+
+            // Analyze methods
             classDecl.getMethods().forEach(method -> {
                 String methodName = method.getNameAsString();
                 LoggerUtil.debug(getClass(), "Analyzing method: {}.{}", className, methodName);
