@@ -155,6 +155,20 @@ public class GraphDataToJsonConverter {
             methodNode.getMethodCalls().add(new MethodCallNode(calledMethod));
         }
 
+        // Get control flow
+        String controlFlowQuery =
+                "MATCH (m:Method {name: $methodName})-[:CONTAINS]->(c:ControlFlow) " +
+                        "RETURN c.type as type, c.condition as condition";
+
+        Result controlFlowResult = session.run(controlFlowQuery, Map.of("methodName", methodName));
+        while (controlFlowResult.hasNext()) {
+            Record record = controlFlowResult.next();
+            ControlFlowNode controlFlowNode = new ControlFlowNode();
+            controlFlowNode.setType(record.get("type").asString());
+            controlFlowNode.setCondition(record.get("condition").asString());
+            methodNode.getControlFlow().add(controlFlowNode);
+        }
+
         return methodNode;
     }
 
