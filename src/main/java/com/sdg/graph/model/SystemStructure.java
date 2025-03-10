@@ -1,4 +1,4 @@
-package com.sdg.model;
+package com.sdg.graph.model;
 
 import java.util.ArrayList;
 import java.util.List;
