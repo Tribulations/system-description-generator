@@ -87,6 +87,17 @@ public class GraphDataToJsonConverter {
     private ClassNode buildClassNode(String className, Session session) {
         ClassNode classNode = new ClassNode();
         classNode.setName(className);
+
+        // Get inheritance
+        String inheritanceQuery =
+                "MATCH (c:Class {name: $className})-[:EXTENDS]->(p:Class) " +
+                        "RETURN p.name as parentName";
+
+        Result inheritanceResult = session.run(inheritanceQuery, Map.of("className", className));
+        while (inheritanceResult.hasNext()) {
+            String parentName = inheritanceResult.next().get("parentName").asString();
+            classNode.getExtendedClasses().add(parentName);
+        }
         
         // Get methods
         String methodsQuery = 

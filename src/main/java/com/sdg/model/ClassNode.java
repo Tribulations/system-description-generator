@@ -5,6 +5,7 @@ import java.util.List;
 
 public class ClassNode {
     private String name;
+    private List<String> extendedClasses = new ArrayList<>();
     private List<MethodNode> methods = new ArrayList<>();
 
     public ClassNode() {}
@@ -19,6 +20,14 @@ public class ClassNode {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public List<String> getExtendedClasses() {
+        return extendedClasses;
+    }
+
+    public void setExtendedClasses(List<String> extendedClasses) {
+        this.extendedClasses = extendedClasses;
     }
 
     public List<MethodNode> getMethods() {
