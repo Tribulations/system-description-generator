@@ -22,6 +22,8 @@ import com.sdg.graph.model.MethodCallNode;
 /**
  * Converts knowledge graph data to JSON format.
  * Uses Jackson for conversion to JSON and Neo4j Driver for database access.
+ *
+ * TODO: extract queries and other responsibilities. to separate class e.g. GraphDatabaseOperations
  * 
  * @see com.sdg.graph.GraphDatabaseOperations
  * @see ClassNode
