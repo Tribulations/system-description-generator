@@ -1,4 +1,4 @@
-package com.sdg.model;
+package com.sdg.graph.model;
 
 public class MethodCallNode {
     private String calledMethod;
