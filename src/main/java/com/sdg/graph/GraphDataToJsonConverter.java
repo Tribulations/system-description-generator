@@ -98,6 +98,17 @@ public class GraphDataToJsonConverter {
             String parentName = inheritanceResult.next().get("parentName").asString();
             classNode.getExtendedClasses().add(parentName);
         }
+
+        // Get implemented interfaces
+        String interfacesQuery =
+                "MATCH (c:Class {name: $className})-[:IMPLEMENTS]->(i:Interface) " +
+                        "RETURN i.name as interfaceName";
+
+        Result interfacesResult = session.run(interfacesQuery, Map.of("className", className));
+        while (interfacesResult.hasNext()) {
+            String interfaceName = interfacesResult.next().get("interfaceName").asString();
+            classNode.getImplementedInterfaces().add(interfaceName);
+        }
         
         // Get methods
         String methodsQuery = 
@@ -109,6 +120,21 @@ public class GraphDataToJsonConverter {
             String methodName = methodsResult.next().get("methodName").asString();
             MethodNode methodNode = buildMethodNode(methodName, session);
             classNode.getMethods().add(methodNode);
+        }
+
+        // Get class fields and their names, types, and access modifiers for the specified class
+        String fieldsQuery =
+                "MATCH (c:Class {name: $className})-[:HAS_FIELD]->(f:ClassField) " +
+                        "RETURN f.name as fieldName, f.type as fieldType, f.visibility as visibility";
+
+        Result fieldsResult = session.run(fieldsQuery, Map.of("className", className));
+        while (fieldsResult.hasNext()) {
+            Record record = fieldsResult.next();
+            ClassFieldNode fieldNode = new ClassFieldNode();
+            fieldNode.setName(record.get("fieldName").asString());
+            fieldNode.setType(record.get("fieldType").asString());
+            fieldNode.setVisibility(record.get("visibility").asString());
+            classNode.getFields().add(fieldNode);
         }
 
         return classNode;
