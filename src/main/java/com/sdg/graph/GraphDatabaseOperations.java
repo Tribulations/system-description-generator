@@ -76,7 +76,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
                 LoggerUtil.debug(getClass(), "Creating method call node and relationship: {} -> {}", methodName, methodCallName);
-                tx.run(CypherConstants.CREATE_FUNCTION_CALL, parameters("name", methodCallName));
+                tx.run(CypherConstants.CREATE_METHOD_CALL, parameters("name", methodCallName));
                 tx.run(CypherConstants.CONNECT_CALL_TO_METHOD,
                         parameters("methodName", methodName, "name", methodCallName));
                 return null;
@@ -179,6 +179,16 @@ public class GraphDatabaseOperations implements AutoCloseable {
             throw e;
         }
     }
+
+    /**
+     * Returns the Neo4j driver instance.
+     *
+     * @return the Neo4j driver instance
+     */
+    public Driver getDriver() {
+        return driver;
+    }
+
 
     /**
      * Closes the database connection.

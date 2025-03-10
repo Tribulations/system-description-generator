@@ -23,13 +23,13 @@ public final class CypherConstants {
         "MATCH (c:Class {name: $className}), (m:Method {name: $methodName}) " +
         "MERGE (c)-[:HAS_METHOD]->(m)";
 
-    /** Query to create a FunctionCall node. Parameters: name */
-    public static final String CREATE_FUNCTION_CALL = 
-        "MERGE (f:FunctionCall {name: $name})";
+    /** Query to create a MethodCall node. Parameters: name */
+    public static final String CREATE_METHOD_CALL =
+        "MERGE (f:MethodCall {name: $name})";
 
-    /** Query to connect FunctionCall to Method. Parameters: methodName, name */
+    /** Query to connect MethodCall to Method. Parameters: methodName, name */
     public static final String CONNECT_CALL_TO_METHOD = 
-        "MATCH (m:Method {name: $methodName}), (f:FunctionCall {name: $name}) " +
+        "MATCH (m:Method {name: $methodName}), (f:MethodCall {name: $name}) " +
         "MERGE (m)-[:CALLS]->(f)";
 
     /** Query to create a ControlFlow node. Parameters: type, condition */
