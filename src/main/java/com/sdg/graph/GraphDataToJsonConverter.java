@@ -3,7 +3,7 @@ package com.sdg.graph;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.sdg.model.TestModel;
+import com.sdg.graph.model.TestModel;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
@@ -12,12 +12,12 @@ import org.neo4j.driver.Driver;
 import java.io.IOException;
 import java.util.Map;
 
-import com.sdg.model.ClassNode;
-import com.sdg.model.MethodNode;
-import com.sdg.model.SystemStructure;
-import com.sdg.model.ClassFieldNode;
-import com.sdg.model.ControlFlowNode;
-import com.sdg.model.MethodCallNode;
+import com.sdg.graph.model.ClassNode;
+import com.sdg.graph.model.MethodNode;
+import com.sdg.graph.model.SystemStructure;
+import com.sdg.graph.model.ClassFieldNode;
+import com.sdg.graph.model.ControlFlowNode;
+import com.sdg.graph.model.MethodCallNode;
 
 /**
  * Converts knowledge graph data to JSON format.
@@ -59,10 +59,22 @@ public class GraphDataToJsonConverter {
         return "";
     }
 
+    /**
+     * Extracts the most significant classes from the knowledge graph and converts them to JSON.
+     * Most significant classes are defined as classes with the most relationships (methods, fields, etc.)
+     *
+     * TODO: This logic likely have to change. Classes with the most relationships
+     * (especially where the relation is to its own class fields as this might not be the most significant).
+     *
+     * @param limit the maximum number of classes to include
+     * @return JSON string representation of the most important classes
+     * @throws IOException if conversion to JSON fails
+     */
     public String jsonifyMostSignificantClasses(int limit) throws IOException {
         SystemStructure system = new SystemStructure();
         
         try (Session session = neo4jDriver.session()) {
+            // Find classes with the most relationships (methods, fields, etc.) ()
             String query = 
             "MATCH (c:Class) " +
             "MATCH (c)-[r]-() " +
@@ -84,6 +96,13 @@ public class GraphDataToJsonConverter {
         return objectMapper.writeValueAsString(system);
     }
 
+    /**
+     * Builds a ClassNode with all its methods, member fields, and relationships
+     *
+     * @param className the name of the class to build
+     * @param session the Neo4j session
+     * @return a populated ClassNode
+     */
     private ClassNode buildClassNode(String className, Session session) {
         ClassNode classNode = new ClassNode();
         classNode.setName(className);
@@ -140,6 +159,15 @@ public class GraphDataToJsonConverter {
         return classNode;
     }
 
+    /**
+     * Builds a MethodNode with its calls and control flow
+     *
+     * A MethodNode represents a method with its own method calls and control flow.
+     *
+     * @param methodName the name of the method to build
+     * @param session the Neo4j session
+     * @return a fully populated MethodNode
+     */
     private MethodNode buildMethodNode(String methodName, Session session) {
         MethodNode methodNode = new MethodNode();
         methodNode.setName(methodName);
