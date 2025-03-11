@@ -1,5 +1,6 @@
 package com.sdg.ast;
 
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.sdg.logging.LoggerUtil;
@@ -25,6 +26,9 @@ public class JavaFileParser {
      * @return A CompilationUnit representing the parsed Java file.
      */
     public CompilationUnit parseFile(String filePath) {
+        ParserConfiguration config = new ParserConfiguration();
+        config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
+        StaticJavaParser.setConfiguration(config);
         LoggerUtil.debug(getClass(), "Parsing Java file: {}", filePath);
         try {
             CompilationUnit cu = StaticJavaParser.parse(new FileInputStream(filePath));
