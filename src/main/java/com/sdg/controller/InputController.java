@@ -1,6 +1,6 @@
 package com.sdg.controller;
 
-import com.sdg.model.InputHandler;
+import com.sdg.graph.KnowledgeGraphService;
 import com.sdg.model.InputHandler.ProcessingResult;
 import com.sdg.view.InputView;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
@@ -23,18 +23,18 @@ public class InputController {
     private static final Logger logger = LoggerFactory.getLogger(InputController.class);
 
     private final InputView view;
-    private final InputHandler model;
+    private final KnowledgeGraphService graphService;
     private final CompositeDisposable disposables = new CompositeDisposable();
     private final Scheduler swingScheduler = Schedulers.from(SwingUtilities::invokeLater);
 
     /**
      * Constructor for InputController.
      * @param view  The UI component for user interaction.
-     * @param model The model handling file processing logic.
+     * @param graphService The service responsible for processing files and generating the knowledge graph.
      */
-    public InputController(InputView view, InputHandler model) {
+    public InputController(InputView view, KnowledgeGraphService graphService) {
         this.view = view;
-        this.model = model;
+        this.graphService = graphService;
 
         // Attach event listeners to the UI buttons
         view.addBrowseListener(e -> browseFile());
@@ -72,8 +72,8 @@ public class InputController {
 
         // Subscribe to the RxJava observable processing files asynchronously
         disposables.add(
-                model.processFilesRx(inputPath)
-                        .observeOn(swingScheduler)  // Ensures UI updates occur on the EDT
+                graphService.processKnowledgeGraph(inputPath)
+                        .observeOn(swingScheduler)
                         .subscribe(
                                 this::handleProcessingResult,
                                 this::handleProcessingError
@@ -127,8 +127,8 @@ public class InputController {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             InputView view = new InputView();
-            InputHandler model = new InputHandler();
-            InputController controller = new InputController(view, model);
+            KnowledgeGraphService graphService = new KnowledgeGraphService();  // Initialize KnowledgeGraphService
+            InputController controller = new InputController(view, graphService);
 
             // Ensure resources are disposed of when the application exits
             Runtime.getRuntime().addShutdownHook(new Thread(controller::dispose));
