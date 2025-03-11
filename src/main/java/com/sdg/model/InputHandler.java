@@ -33,11 +33,17 @@ public class InputHandler {
      * @return An Observable emitting ProcessingResult for each Java file.
      */
     public Observable<ProcessingResult> processFilesRx(String inputPath) {
-        return processInputRx(inputPath).flattenAsObservable(paths -> paths)
+        return processInputRx(inputPath)
+                .flattenAsObservable(paths -> paths)  // Emits each file separately
                 .flatMap(file -> readAndPreprocessFileRx(file)
-                        .map(content ->
-                                new ProcessingResult(file, content.length(),
-                                        content)).toObservable());
+                        .subscribeOn(Schedulers.io())  // Process each file on a separate I/O thread
+                        .map(content -> {
+                            logger.info("Processing file: " + file);
+                            return new ProcessingResult(file, content.length(), content);
+                        })
+                        .toObservable()
+                )
+                .doOnComplete(() -> logger.info("Completed processing all files."));
     }
 
     /**
