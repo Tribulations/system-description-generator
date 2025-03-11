@@ -32,7 +32,7 @@ public class Neo4jDatabaseService implements AutoCloseable {
             session.readTransaction(tx -> {
                 Result result = tx.run(query);
                 while (result.hasNext()) {
-                    Record record = result.next();
+                    Record rec = result.next();
                     System.out.println("Node N - Code: " + record.get("n_code").asString() +
                             ", Type: " + record.get("n_type").asString());
                     System.out.println("Relationship: " + record.get("r").asMap());
