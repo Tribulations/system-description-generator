@@ -147,12 +147,12 @@ public class PythonClient {
         System.out.println("Time taken: " + ((end - start) / 1000) + " seconds");
     }
 
-    /**
-     * Make sure the Python microservice is running before running this main method.
-     * @param args
-     * @throws Exception
-     */
-    public static void main(String[] args) throws Exception {
-        testLlm();
-    }
+//    /**
+//     * Make sure the Python microservice is running before running this main method.
+//     * @param args
+//     * @throws Exception
+//     */
+//    public static void main(String[] args) throws Exception {
+//        testLlm();
+//    }
 }
