@@ -35,57 +35,70 @@ public class ASTAnalyzer {
     
     /**
      * Analyze the given AST and store the analysis results in the graph database.
+     *
      * @param cu the AST to analyze
      */
 
     public void analyzeAndStore(CompilationUnit cu) {
         LoggerUtil.info(getClass(), "Starting AST analysis");
+        analyzeClass(cu);
+        LoggerUtil.info(getClass(), "AST analysis completed");
+    }
 
+    private void analyzeClass(CompilationUnit cu) {
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(classDecl -> {
             String className = classDecl.getNameAsString();
+
             LoggerUtil.debug(getClass(), "Analyzing class: {}", className);
+
             dbOps.createClassNode(className);
 
-            // Analyze inheritance
-            classDecl.getExtendedTypes().forEach(extendedType -> {
-                String parentName = extendedType.getNameAsString();
-                LoggerUtil.debug(getClass(), "Found inheritance: {} extends {}", className, parentName);
-                dbOps.createClassNode(parentName); // Creates a class node if it does not already exist
-                dbOps.createInheritanceRelationship(className, parentName);
-            });
+            analyzeInheritance(classDecl, className);
+            analyzeInterfaceImplementations(classDecl, className);
+            analyzeFields(classDecl, className); // TODO: Maybe not needed?
+            analyzeMethods(classDecl, className);
+        });
+    }
 
-            // Analyze interface implementations
-            classDecl.getImplementedTypes().forEach(implementedType -> {
-                String interfaceName = implementedType.getNameAsString();
-                LoggerUtil.debug(getClass(), "Found interface implementation: {} implements {}", className, interfaceName);
-                dbOps.createInterfaceImplementation(className, interfaceName);
-            });
+    private void analyzeInheritance(ClassOrInterfaceDeclaration classDecl, String className) {
+        classDecl.getExtendedTypes().forEach(extendedType -> {
+            String parentName = extendedType.getNameAsString();
+            LoggerUtil.debug(getClass(), "Found inheritance: {} extends {}", className, parentName);
+            dbOps.createClassNode(parentName); // Creates a class node if it does not already exist
+            dbOps.createInheritanceRelationship(className, parentName);
+        });
+    }
 
-            // Analyze fields
-            classDecl.getFields().forEach(field -> {
-                String fieldType = field.getElementType().asString();
-                String accessModifier = field.getModifiers().isEmpty() ? "package-private" :
-                                  field.getModifiers().get(0).toString().toLowerCase();
-                
-                field.getVariables().forEach(var -> {
-                    String fieldName = var.getNameAsString();
-                    LoggerUtil.debug(getClass(), "Found field: {}.{} ({} {})", className, fieldName, accessModifier, fieldType);
-                    dbOps.createClassField(className, fieldName, fieldType, accessModifier);
-                });
-            });
+    private void analyzeInterfaceImplementations(ClassOrInterfaceDeclaration classDecl, String className) {
+        classDecl.getImplementedTypes().forEach(implementedType -> {
+            String interfaceName = implementedType.getNameAsString();
+            LoggerUtil.debug(getClass(), "Found interface implementation: {} implements {}", className, interfaceName);
+            dbOps.createInterfaceImplementation(className, interfaceName);
+        });
+    }
 
-            // Analyze methods
-            classDecl.getMethods().forEach(method -> {
-                String methodName = method.getNameAsString();
-                LoggerUtil.debug(getClass(), "Analyzing method: {}.{}", className, methodName);
+    private void analyzeMethods(ClassOrInterfaceDeclaration classDecl, String className) {
+        classDecl.getMethods().forEach(method -> {
+            String methodName = method.getNameAsString();
+            LoggerUtil.debug(getClass(), "Analyzing method: {}.{}", className, methodName);
+            dbOps.createMethodNode(className, methodName);
+            analyzeMethodCalls(method, methodName);
+            analyzeControlFlow(method, methodName);
+        });
+    }
 
-                dbOps.createMethodNode(className, methodName);
-                analyzeMethodCalls(method, methodName);
-                analyzeControlFlow(method, methodName);
+    private void analyzeFields(ClassOrInterfaceDeclaration classDecl, String className) {
+        classDecl.getFields().forEach(field -> {
+            String fieldType = field.getElementType().asString();
+            String accessModifier = field.getModifiers().isEmpty() ? "package-private" :
+                              field.getModifiers().get(0).toString().toLowerCase();
+
+            field.getVariables().forEach(var -> {
+                String fieldName = var.getNameAsString();
+                LoggerUtil.debug(getClass(), "Found field: {}.{} ({} {})", className, fieldName, accessModifier, fieldType);
+                dbOps.createClassField(className, fieldName, fieldType, accessModifier);
             });
         });
-
-        LoggerUtil.info(getClass(), "AST analysis completed");
     }
 
     private void analyzeMethodCalls(MethodDeclaration method, String methodName) {
