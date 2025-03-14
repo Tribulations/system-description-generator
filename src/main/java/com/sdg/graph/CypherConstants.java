@@ -72,4 +72,43 @@ public final class CypherConstants {
     public static final String CONNECT_FIELD_TO_CLASS = 
         "MATCH (c:Class {name: $className}), (f:ClassField {name: $fieldName}) " +
         "MERGE (c)-[:HAS_FIELD]->(f)";
+
+    /** Query to find classes with the most relationships (methods, fields, etc.) Parameters: limit */
+    public static final String FIND_CLASSES_WITH_MOST_RELATIONSHIPS = 
+        "MATCH (c:Class) " +
+        "MATCH (c)-[r]-() " +
+        "WITH c, COUNT(r) AS connections " +
+        "ORDER BY connections DESC " +
+        "LIMIT $limit " +
+        "RETURN c.name as className";
+
+    /** Query to get control flow of a method. Parameters: methodName */
+    public static final String GET_CONTROL_FLOW =
+        "MATCH (m:Method {name: $methodName})-[:CONTAINS]->(c:ControlFlow) " +
+                "RETURN c.type as type, c.condition as condition";
+
+    /** Query to get fields of a class. Parameters: className */
+    public static final String GET_CLASS_FIELDS =
+        "MATCH (c:Class {name: $className})-[:HAS_FIELD]->(f:ClassField) " +
+                "RETURN f.name as fieldName, f.type as fieldType, f.visibility as visibility";
+
+    /** Query to get methods of a class. Parameters: className */
+    public static final String GET_CLASS_METHODS =
+        "MATCH (c:Class {name: $className})-[:HAS_METHOD]->(m:Method) " +
+                "RETURN m.name as methodName";
+
+    /** Query to get implemented interfaces of a class. Parameters: className */
+    public static final String GET_CLASS_INTERFACES =
+        "MATCH (c:Class {name: $className})-[:IMPLEMENTS]->(i:Interface) " +
+                "RETURN i.name as interfaceName";
+
+    /** Query to get parent class of a class. Parameters: className */
+    public static final String GET_CLASS_INHERITANCE =
+        "MATCH (c:Class {name: $className})-[:EXTENDS]->(p:Class) " +
+                "RETURN p.name as parentName";
+
+    /** Query to get method calls of a method. Parameters: methodName */
+    public static final String GET_METHOD_CALLS =
+        "MATCH (m:Method {name: $methodName})-[:CALLS]->(f:MethodCall) " +
+                "RETURN f.name as calledMethod";
 }
