@@ -1,9 +1,7 @@
 package com.sdg.graph;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.sdg.graph.model.TestModel;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
@@ -49,16 +47,6 @@ public class GraphDataToJsonConverter {
         this.objectMapper = new ObjectMapper();
 
         objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
-    }
-
-    public String toJson(TestModel testModel) {
-        try {
-            return objectMapper.writeValueAsString(testModel);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-
-        return "";
     }
 
     /**
@@ -110,40 +98,26 @@ public class GraphDataToJsonConverter {
         classNode.setName(className);
 
         // Get inheritance
-        String inheritanceQuery =
-                "MATCH (c:Class {name: $className})-[:EXTENDS]->(p:Class) " +
-                        "RETURN p.name as parentName";
-
-        Result inheritanceResult = session.run(inheritanceQuery, Map.of("className", className));
-        while (inheritanceResult.hasNext()) {
-            String parentName = inheritanceResult.next().get("parentName").asString();
-            classNode.getExtendedClasses().add(parentName);
-        }
+        getInheritance(className, session, classNode);
 
         // Get implemented interfaces
-        String interfacesQuery =
-                "MATCH (c:Class {name: $className})-[:IMPLEMENTS]->(i:Interface) " +
-                        "RETURN i.name as interfaceName";
+        getImplementedInterfaces(className, session, classNode);
 
-        Result interfacesResult = session.run(interfacesQuery, Map.of("className", className));
-        while (interfacesResult.hasNext()) {
-            String interfaceName = interfacesResult.next().get("interfaceName").asString();
-            classNode.getImplementedInterfaces().add(interfaceName);
-        }
-        
-        // Get methods
-        String methodsQuery = 
-            "MATCH (c:Class {name: $className})-[:HAS_METHOD]->(m:Method) " +
-            "RETURN m.name as methodName";
-        
-        Result methodsResult = session.run(methodsQuery, Map.of("className", className));
-        while (methodsResult.hasNext()) {
-            String methodName = methodsResult.next().get("methodName").asString();
-            MethodNode methodNode = buildMethodNode(methodName, session);
-            classNode.getMethods().add(methodNode);
-        }
+       getMethods(className, session, classNode);
 
-        // Get class fields and their names, types, and access modifiers for the specified class
+       getMemberFields(className, session, classNode);
+
+        return classNode;
+    }
+
+    /**
+     * Get class fields and their names, types, and access modifiers for the specified class.
+     * 
+     * @param className the name of the class
+     * @param session the Neo4j session
+     * @param classNode the ClassNode to populate
+     */
+    private void getMemberFields(String className, Session session, ClassNode classNode) {
         String fieldsQuery =
                 "MATCH (c:Class {name: $className})-[:HAS_FIELD]->(f:ClassField) " +
                         "RETURN f.name as fieldName, f.type as fieldType, f.visibility as visibility";
@@ -157,8 +131,43 @@ public class GraphDataToJsonConverter {
             fieldNode.setVisibility(record.get("visibility").asString());
             classNode.getFields().add(fieldNode);
         }
+    }
 
-        return classNode;
+    private void getMethods(String className, Session session, ClassNode classNode) {
+        String methodsQuery =
+            "MATCH (c:Class {name: $className})-[:HAS_METHOD]->(m:Method) " +
+            "RETURN m.name as methodName";
+
+        Result methodsResult = session.run(methodsQuery, Map.of("className", className));
+        while (methodsResult.hasNext()) {
+            String methodName = methodsResult.next().get("methodName").asString();
+            MethodNode methodNode = buildMethodNode(methodName, session);
+            classNode.getMethods().add(methodNode);
+        }
+    }
+
+    private void getImplementedInterfaces(String className, Session session, ClassNode classNode) {
+        String interfacesQuery =
+                "MATCH (c:Class {name: $className})-[:IMPLEMENTS]->(i:Interface) " +
+                        "RETURN i.name as interfaceName";
+
+        Result interfacesResult = session.run(interfacesQuery, Map.of("className", className));
+        while (interfacesResult.hasNext()) {
+            String interfaceName = interfacesResult.next().get("interfaceName").asString();
+            classNode.getImplementedInterfaces().add(interfaceName);
+        }
+    }
+
+    private void getInheritance(String className, Session session, ClassNode classNode) {
+        String inheritanceQuery =
+                "MATCH (c:Class {name: $className})-[:EXTENDS]->(p:Class) " +
+                        "RETURN p.name as parentName";
+
+        Result inheritanceResult = session.run(inheritanceQuery, Map.of("className", className));
+        while (inheritanceResult.hasNext()) {
+            String parentName = inheritanceResult.next().get("parentName").asString();
+            classNode.getExtendedClasses().add(parentName);
+        }
     }
 
     /**
@@ -173,19 +182,14 @@ public class GraphDataToJsonConverter {
     private MethodNode buildMethodNode(String methodName, Session session) {
         MethodNode methodNode = new MethodNode();
         methodNode.setName(methodName);
-        
-        // Get method calls
-        String callsQuery = 
-            "MATCH (m:Method {name: $methodName})-[:CALLS]->(f:MethodCall) " +
-            "RETURN f.name as calledMethod";
-        
-        Result callsResult = session.run(callsQuery, Map.of("methodName", methodName));
-        while (callsResult.hasNext()) {
-            String calledMethod = callsResult.next().get("calledMethod").asString();
-            methodNode.getMethodCalls().add(new MethodCallNode(calledMethod));
-        }
 
-        // Get control flow
+        getMethodCalls(methodName, session, methodNode);
+        getControlFlow(methodName, session, methodNode);
+
+        return methodNode;
+    }
+
+    private void getControlFlow(String methodName, Session session, MethodNode methodNode) {
         String controlFlowQuery =
                 "MATCH (m:Method {name: $methodName})-[:CONTAINS]->(c:ControlFlow) " +
                         "RETURN c.type as type, c.condition as condition";
@@ -198,8 +202,18 @@ public class GraphDataToJsonConverter {
             controlFlowNode.setCondition(record.get("condition").asString());
             methodNode.getControlFlow().add(controlFlowNode);
         }
+    }
 
-        return methodNode;
+    private void getMethodCalls(String methodName, Session session, MethodNode methodNode) {
+        String callsQuery =
+            "MATCH (m:Method {name: $methodName})-[:CALLS]->(f:MethodCall) " +
+            "RETURN f.name as calledMethod";
+
+        Result callsResult = session.run(callsQuery, Map.of("methodName", methodName));
+        while (callsResult.hasNext()) {
+            String calledMethod = callsResult.next().get("calledMethod").asString();
+            methodNode.getMethodCalls().add(new MethodCallNode(calledMethod));
+        }
     }
 
 
