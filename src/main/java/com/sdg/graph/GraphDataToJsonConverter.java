@@ -63,17 +63,8 @@ public class GraphDataToJsonConverter {
     public String jsonifyMostSignificantClasses(int limit) throws IOException {
         SystemStructure system = new SystemStructure();
         
-        try (Session session = neo4jDriver.session()) {
-            // Find classes with the most relationships (methods, fields, etc.) ()
-            String query = 
-            "MATCH (c:Class) " +
-            "MATCH (c)-[r]-() " +
-            "WITH c, COUNT(r) AS connections " +
-            "ORDER BY connections DESC " +
-            "LIMIT $limit " +
-            "RETURN c.name as className";
-            
-            Result result = session.run(query, Map.of("limit", limit));
+        try (Session session = neo4jDriver.session()) {            
+            Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS, Map.of("limit", limit));
 
             while (result.hasNext()) {
                 Record record = result.next();
@@ -97,15 +88,10 @@ public class GraphDataToJsonConverter {
         ClassNode classNode = new ClassNode();
         classNode.setName(className);
 
-        // Get inheritance
         getInheritance(className, session, classNode);
-
-        // Get implemented interfaces
         getImplementedInterfaces(className, session, classNode);
-
-       getMethods(className, session, classNode);
-
-       getMemberFields(className, session, classNode);
+        getMethods(className, session, classNode);
+        getMemberFields(className, session, classNode);
 
         return classNode;
     }
@@ -118,11 +104,7 @@ public class GraphDataToJsonConverter {
      * @param classNode the ClassNode to populate
      */
     private void getMemberFields(String className, Session session, ClassNode classNode) {
-        String fieldsQuery =
-                "MATCH (c:Class {name: $className})-[:HAS_FIELD]->(f:ClassField) " +
-                        "RETURN f.name as fieldName, f.type as fieldType, f.visibility as visibility";
-
-        Result fieldsResult = session.run(fieldsQuery, Map.of("className", className));
+        Result fieldsResult = session.run(CypherConstants.GET_CLASS_FIELDS, Map.of("className", className));
         while (fieldsResult.hasNext()) {
             Record record = fieldsResult.next();
             ClassFieldNode fieldNode = new ClassFieldNode();
@@ -134,11 +116,7 @@ public class GraphDataToJsonConverter {
     }
 
     private void getMethods(String className, Session session, ClassNode classNode) {
-        String methodsQuery =
-            "MATCH (c:Class {name: $className})-[:HAS_METHOD]->(m:Method) " +
-            "RETURN m.name as methodName";
-
-        Result methodsResult = session.run(methodsQuery, Map.of("className", className));
+        Result methodsResult = session.run(CypherConstants.GET_CLASS_METHODS, Map.of("className", className));
         while (methodsResult.hasNext()) {
             String methodName = methodsResult.next().get("methodName").asString();
             MethodNode methodNode = buildMethodNode(methodName, session);
@@ -147,11 +125,7 @@ public class GraphDataToJsonConverter {
     }
 
     private void getImplementedInterfaces(String className, Session session, ClassNode classNode) {
-        String interfacesQuery =
-                "MATCH (c:Class {name: $className})-[:IMPLEMENTS]->(i:Interface) " +
-                        "RETURN i.name as interfaceName";
-
-        Result interfacesResult = session.run(interfacesQuery, Map.of("className", className));
+        Result interfacesResult = session.run(CypherConstants.GET_CLASS_INTERFACES, Map.of("className", className));
         while (interfacesResult.hasNext()) {
             String interfaceName = interfacesResult.next().get("interfaceName").asString();
             classNode.getImplementedInterfaces().add(interfaceName);
@@ -159,11 +133,7 @@ public class GraphDataToJsonConverter {
     }
 
     private void getInheritance(String className, Session session, ClassNode classNode) {
-        String inheritanceQuery =
-                "MATCH (c:Class {name: $className})-[:EXTENDS]->(p:Class) " +
-                        "RETURN p.name as parentName";
-
-        Result inheritanceResult = session.run(inheritanceQuery, Map.of("className", className));
+        Result inheritanceResult = session.run(CypherConstants.GET_CLASS_INHERITANCE, Map.of("className", className));
         while (inheritanceResult.hasNext()) {
             String parentName = inheritanceResult.next().get("parentName").asString();
             classNode.getExtendedClasses().add(parentName);
@@ -190,11 +160,7 @@ public class GraphDataToJsonConverter {
     }
 
     private void getControlFlow(String methodName, Session session, MethodNode methodNode) {
-        String controlFlowQuery =
-                "MATCH (m:Method {name: $methodName})-[:CONTAINS]->(c:ControlFlow) " +
-                        "RETURN c.type as type, c.condition as condition";
-
-        Result controlFlowResult = session.run(controlFlowQuery, Map.of("methodName", methodName));
+        Result controlFlowResult = session.run(CypherConstants.GET_CONTROL_FLOW, Map.of("methodName", methodName));
         while (controlFlowResult.hasNext()) {
             Record record = controlFlowResult.next();
             ControlFlowNode controlFlowNode = new ControlFlowNode();
@@ -205,17 +171,12 @@ public class GraphDataToJsonConverter {
     }
 
     private void getMethodCalls(String methodName, Session session, MethodNode methodNode) {
-        String callsQuery =
-            "MATCH (m:Method {name: $methodName})-[:CALLS]->(f:MethodCall) " +
-            "RETURN f.name as calledMethod";
-
-        Result callsResult = session.run(callsQuery, Map.of("methodName", methodName));
+        Result callsResult = session.run(CypherConstants.GET_METHOD_CALLS, Map.of("methodName", methodName));
         while (callsResult.hasNext()) {
             String calledMethod = callsResult.next().get("calledMethod").asString();
             methodNode.getMethodCalls().add(new MethodCallNode(calledMethod));
         }
     }
-
 
     public static void main(String... args) throws IOException {
         System.out.println(getTopLevelNodesAsJSONString());
