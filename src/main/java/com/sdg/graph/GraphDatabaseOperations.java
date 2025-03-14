@@ -40,7 +40,8 @@ public class GraphDatabaseOperations implements AutoCloseable {
         try (Session session = driver.session()) {
             session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating class node: {}", className);
-                tx.run(CypherConstants.CREATE_CLASS, parameters("name", className));
+                tx.run(CypherConstants.CREATE_CLASS, parameters(CypherConstants.PROP_CLASS_NAME, 
+                className));
                 return null;
             });
         }
@@ -56,9 +57,10 @@ public class GraphDatabaseOperations implements AutoCloseable {
         try (Session session = driver.session()) {
             session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating method node and relationship: {}.{}", className, methodName);
-                tx.run(CypherConstants.CREATE_METHOD, parameters("name", methodName));
+                tx.run(CypherConstants.CREATE_METHOD, parameters(CypherConstants.PROP_METHOD_NAME, methodName));
                 tx.run(CypherConstants.CONNECT_METHOD_TO_CLASS,
-                        parameters("className", className, "methodName", methodName));
+                        parameters(CypherConstants.PROP_CLASS_NAME, className, 
+                                 CypherConstants.PROP_METHOD_NAME, methodName));
                 return null;
             });
         }
@@ -74,9 +76,10 @@ public class GraphDatabaseOperations implements AutoCloseable {
         try (Session session = driver.session()) {
             session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating method call node and relationship: {} -> {}", methodName, methodCallName);
-                tx.run(CypherConstants.CREATE_METHOD_CALL, parameters("name", methodCallName));
+                tx.run(CypherConstants.CREATE_METHOD_CALL, parameters(CypherConstants.PROP_CALLED_METHOD, methodCallName));
                 tx.run(CypherConstants.CONNECT_CALL_TO_METHOD,
-                        parameters("methodName", methodName, "name", methodCallName));
+                        parameters(CypherConstants.PROP_METHOD_NAME, methodName, 
+                                 CypherConstants.PROP_CALLED_METHOD, methodCallName));
                 return null;
             });
         }
@@ -94,9 +97,11 @@ public class GraphDatabaseOperations implements AutoCloseable {
             session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating control flow node and relationship: {} -> {}", methodName, condition);
                 tx.run(CypherConstants.CREATE_CONTROL_FLOW,
-                        parameters("type", type, "condition", condition));
+                        parameters(CypherConstants.PROP_TYPE, type, 
+                                 CypherConstants.PROP_CONDITION, condition));
                 tx.run(CypherConstants.CONNECT_CONTROL_TO_METHOD,
-                        parameters("methodName", methodName, "condition", condition));
+                        parameters(CypherConstants.PROP_METHOD_NAME, methodName, 
+                                 CypherConstants.PROP_CONDITION, condition));
                 return null;
             });
         }
@@ -113,7 +118,8 @@ public class GraphDatabaseOperations implements AutoCloseable {
             session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating inheritance relationship: {} extends {}", className, parentName);
                 tx.run(CypherConstants.CONNECT_CLASS_INHERITANCE,
-                        parameters("className", className, "parentName", parentName));
+                        parameters(CypherConstants.PROP_CLASS_NAME, className, 
+                                 CypherConstants.PROP_PARENT_NAME, parentName));
                 return null;
             });
         }
@@ -129,9 +135,10 @@ public class GraphDatabaseOperations implements AutoCloseable {
         try (Session session = driver.session()) {
             session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating interface implementation: {} implements {}", className, interfaceName);
-                tx.run(CypherConstants.CREATE_INTERFACE, parameters("name", interfaceName));
+                tx.run(CypherConstants.CREATE_INTERFACE, parameters(CypherConstants.PROP_INTERFACE_NAME, interfaceName));
                 tx.run(CypherConstants.CONNECT_INTERFACE_IMPLEMENTATION,
-                        parameters("className", className, "interfaceName", interfaceName));
+                        parameters(CypherConstants.PROP_CLASS_NAME, className, 
+                                 CypherConstants.PROP_INTERFACE_NAME, interfaceName));
                 return null;
             });
         }
@@ -150,9 +157,12 @@ public class GraphDatabaseOperations implements AutoCloseable {
             session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating class field: {}.{} ({} {})", className, fieldName, visibility, fieldType);
                 tx.run(CypherConstants.CREATE_CLASS_FIELD,
-                        parameters("name", fieldName, "type", fieldType, "visibility", visibility));
+                        parameters(CypherConstants.PROP_FIELD_NAME, fieldName, 
+                                 CypherConstants.PROP_FIELD_TYPE, fieldType, 
+                                 CypherConstants.PROP_VISIBILITY, visibility));
                 tx.run(CypherConstants.CONNECT_FIELD_TO_CLASS,
-                        parameters("className", className, "fieldName", fieldName));
+                        parameters(CypherConstants.PROP_CLASS_NAME, className, 
+                                 CypherConstants.PROP_FIELD_NAME, fieldName));
                 return null;
             });
         }
@@ -186,7 +196,6 @@ public class GraphDatabaseOperations implements AutoCloseable {
     public Driver getDriver() {
         return driver;
     }
-
 
     /**
      * Closes the database connection.
