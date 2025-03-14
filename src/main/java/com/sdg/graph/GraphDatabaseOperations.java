@@ -18,8 +18,6 @@ import static org.neo4j.driver.Values.parameters;
  * @see CypherConstants
  */
 public class GraphDatabaseOperations implements AutoCloseable {
-    // TODO: Replace usage of depreacted methods in this class
-
     private final Driver driver;
 
     /**
@@ -40,7 +38,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      */
     public void createClassNode(String className) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> {
+            session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating class node: {}", className);
                 tx.run(CypherConstants.CREATE_CLASS, parameters("name", className));
                 return null;
@@ -56,7 +54,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      */
     public void createMethodNode(String className, String methodName) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> {
+            session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating method node and relationship: {}.{}", className, methodName);
                 tx.run(CypherConstants.CREATE_METHOD, parameters("name", methodName));
                 tx.run(CypherConstants.CONNECT_METHOD_TO_CLASS,
@@ -74,7 +72,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      */
     public void createMethodCallNode(String methodName, String methodCallName) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> {
+            session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating method call node and relationship: {} -> {}", methodName, methodCallName);
                 tx.run(CypherConstants.CREATE_METHOD_CALL, parameters("name", methodCallName));
                 tx.run(CypherConstants.CONNECT_CALL_TO_METHOD,
@@ -93,7 +91,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      */
     public void createControlFlowNode(String methodName, String type, String condition) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> {
+            session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating control flow node and relationship: {} -> {}", methodName, condition);
                 tx.run(CypherConstants.CREATE_CONTROL_FLOW,
                         parameters("type", type, "condition", condition));
@@ -112,7 +110,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      */
     public void createInheritanceRelationship(String className, String parentName) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> {
+            session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating inheritance relationship: {} extends {}", className, parentName);
                 tx.run(CypherConstants.CONNECT_CLASS_INHERITANCE,
                         parameters("className", className, "parentName", parentName));
@@ -129,7 +127,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      */
     public void createInterfaceImplementation(String className, String interfaceName) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> {
+            session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating interface implementation: {} implements {}", className, interfaceName);
                 tx.run(CypherConstants.CREATE_INTERFACE, parameters("name", interfaceName));
                 tx.run(CypherConstants.CONNECT_INTERFACE_IMPLEMENTATION,
@@ -149,7 +147,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      */
     public void createClassField(String className, String fieldName, String fieldType, String visibility) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> {
+            session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Creating class field: {}.{} ({} {})", className, fieldName, visibility, fieldType);
                 tx.run(CypherConstants.CREATE_CLASS_FIELD,
                         parameters("name", fieldName, "type", fieldType, "visibility", visibility));
@@ -168,7 +166,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
     public void deleteAllData() {
         try (var session = driver.session()) {
             LoggerUtil.warn(getClass(), "Deleting all data from the database");
-            session.writeTransaction(tx -> {
+            session.executeWrite(tx -> {
                 LoggerUtil.debug(getClass(), "Executing delete query");
                 tx.run(CypherConstants.DELETE_ALL);
                 LoggerUtil.info(getClass(), "All data deleted successfully");
