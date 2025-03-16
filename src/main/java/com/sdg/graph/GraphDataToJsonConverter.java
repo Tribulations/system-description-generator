@@ -1,9 +1,7 @@
 package com.sdg.graph;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.sdg.graph.model.TestModel;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
@@ -22,8 +20,6 @@ import com.sdg.graph.model.MethodCallNode;
 /**
  * Converts knowledge graph data to JSON format.
  * Uses Jackson for conversion to JSON and Neo4j Driver for database access.
- *
- * TODO: extract queries and other responsibilities. to separate class e.g. GraphDatabaseOperations
  * 
  * @see com.sdg.graph.GraphDatabaseOperations
  * @see ClassNode
@@ -51,16 +47,6 @@ public class GraphDataToJsonConverter {
         objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
-    public String toJson(TestModel testModel) {
-        try {
-            return objectMapper.writeValueAsString(testModel);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-
-        return "";
-    }
-
     /**
      * Extracts the most significant classes from the knowledge graph and converts them to JSON.
      * Most significant classes are defined as classes with the most relationships (methods, fields, etc.)
@@ -75,21 +61,12 @@ public class GraphDataToJsonConverter {
     public String jsonifyMostSignificantClasses(int limit) throws IOException {
         SystemStructure system = new SystemStructure();
         
-        try (Session session = neo4jDriver.session()) {
-            // Find classes with the most relationships (methods, fields, etc.) ()
-            String query = 
-            "MATCH (c:Class) " +
-            "MATCH (c)-[r]-() " +
-            "WITH c, COUNT(r) AS connections " +
-            "ORDER BY connections DESC " +
-            "LIMIT $limit " +
-            "RETURN c.name as className";
-            
-            Result result = session.run(query, Map.of("limit", limit));
+        try (Session session = neo4jDriver.session()) {            
+            Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS, Map.of(CypherConstants.PROP_LIMIT, limit));
 
             while (result.hasNext()) {
                 Record record = result.next();
-                String className = record.get("className").asString();
+                String className = record.get(CypherConstants.PROP_CLASS_NAME).asString();
                 ClassNode classNode = buildClassNode(className, session);
                 system.addClass(classNode);
             }
@@ -109,56 +86,56 @@ public class GraphDataToJsonConverter {
         ClassNode classNode = new ClassNode();
         classNode.setName(className);
 
-        // Get inheritance
-        String inheritanceQuery =
-                "MATCH (c:Class {name: $className})-[:EXTENDS]->(p:Class) " +
-                        "RETURN p.name as parentName";
+        getInheritance(className, session, classNode);
+        getImplementedInterfaces(className, session, classNode);
+        getMethods(className, session, classNode);
+        getMemberFields(className, session, classNode);
 
-        Result inheritanceResult = session.run(inheritanceQuery, Map.of("className", className));
-        while (inheritanceResult.hasNext()) {
-            String parentName = inheritanceResult.next().get("parentName").asString();
-            classNode.getExtendedClasses().add(parentName);
-        }
+        return classNode;
+    }
 
-        // Get implemented interfaces
-        String interfacesQuery =
-                "MATCH (c:Class {name: $className})-[:IMPLEMENTS]->(i:Interface) " +
-                        "RETURN i.name as interfaceName";
-
-        Result interfacesResult = session.run(interfacesQuery, Map.of("className", className));
-        while (interfacesResult.hasNext()) {
-            String interfaceName = interfacesResult.next().get("interfaceName").asString();
-            classNode.getImplementedInterfaces().add(interfaceName);
-        }
-        
-        // Get methods
-        String methodsQuery = 
-            "MATCH (c:Class {name: $className})-[:HAS_METHOD]->(m:Method) " +
-            "RETURN m.name as methodName";
-        
-        Result methodsResult = session.run(methodsQuery, Map.of("className", className));
-        while (methodsResult.hasNext()) {
-            String methodName = methodsResult.next().get("methodName").asString();
-            MethodNode methodNode = buildMethodNode(methodName, session);
-            classNode.getMethods().add(methodNode);
-        }
-
-        // Get class fields and their names, types, and access modifiers for the specified class
-        String fieldsQuery =
-                "MATCH (c:Class {name: $className})-[:HAS_FIELD]->(f:ClassField) " +
-                        "RETURN f.name as fieldName, f.type as fieldType, f.visibility as visibility";
-
-        Result fieldsResult = session.run(fieldsQuery, Map.of("className", className));
+    /**
+     * Get class fields and their names, types, and access modifiers for the specified class.
+     * 
+     * @param className the name of the class
+     * @param session the Neo4j session
+     * @param classNode the ClassNode to populate
+     */
+    private void getMemberFields(String className, Session session, ClassNode classNode) {
+        Result fieldsResult = session.run(CypherConstants.GET_CLASS_FIELDS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (fieldsResult.hasNext()) {
             Record record = fieldsResult.next();
             ClassFieldNode fieldNode = new ClassFieldNode();
-            fieldNode.setName(record.get("fieldName").asString());
-            fieldNode.setType(record.get("fieldType").asString());
-            fieldNode.setVisibility(record.get("visibility").asString());
+            fieldNode.setName(record.get(CypherConstants.PROP_FIELD_NAME).asString());
+            fieldNode.setType(record.get(CypherConstants.PROP_FIELD_TYPE).asString());
+            fieldNode.setVisibility(record.get(CypherConstants.PROP_VISIBILITY).asString());
             classNode.getFields().add(fieldNode);
         }
+    }
 
-        return classNode;
+    private void getMethods(String className, Session session, ClassNode classNode) {
+        Result methodsResult = session.run(CypherConstants.GET_CLASS_METHODS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
+        while (methodsResult.hasNext()) {
+            String methodName = methodsResult.next().get(CypherConstants.PROP_METHOD_NAME).asString();
+            MethodNode methodNode = buildMethodNode(methodName, session);
+            classNode.getMethods().add(methodNode);
+        }
+    }
+
+    private void getImplementedInterfaces(String className, Session session, ClassNode classNode) {
+        Result interfacesResult = session.run(CypherConstants.GET_CLASS_INTERFACES, Map.of(CypherConstants.PROP_CLASS_NAME, className));
+        while (interfacesResult.hasNext()) {
+            String interfaceName = interfacesResult.next().get(CypherConstants.PROP_INTERFACE_NAME).asString();
+            classNode.getImplementedInterfaces().add(interfaceName);
+        }
+    }
+
+    private void getInheritance(String className, Session session, ClassNode classNode) {
+        Result inheritanceResult = session.run(CypherConstants.GET_CLASS_INHERITANCE, Map.of(CypherConstants.PROP_CLASS_NAME, className));
+        while (inheritanceResult.hasNext()) {
+            String parentName = inheritanceResult.next().get(CypherConstants.PROP_PARENT_NAME).asString();
+            classNode.getExtendedClasses().add(parentName);
+        }
     }
 
     /**
@@ -173,35 +150,31 @@ public class GraphDataToJsonConverter {
     private MethodNode buildMethodNode(String methodName, Session session) {
         MethodNode methodNode = new MethodNode();
         methodNode.setName(methodName);
-        
-        // Get method calls
-        String callsQuery = 
-            "MATCH (m:Method {name: $methodName})-[:CALLS]->(f:MethodCall) " +
-            "RETURN f.name as calledMethod";
-        
-        Result callsResult = session.run(callsQuery, Map.of("methodName", methodName));
-        while (callsResult.hasNext()) {
-            String calledMethod = callsResult.next().get("calledMethod").asString();
-            methodNode.getMethodCalls().add(new MethodCallNode(calledMethod));
-        }
 
-        // Get control flow
-        String controlFlowQuery =
-                "MATCH (m:Method {name: $methodName})-[:CONTAINS]->(c:ControlFlow) " +
-                        "RETURN c.type as type, c.condition as condition";
-
-        Result controlFlowResult = session.run(controlFlowQuery, Map.of("methodName", methodName));
-        while (controlFlowResult.hasNext()) {
-            Record record = controlFlowResult.next();
-            ControlFlowNode controlFlowNode = new ControlFlowNode();
-            controlFlowNode.setType(record.get("type").asString());
-            controlFlowNode.setCondition(record.get("condition").asString());
-            methodNode.getControlFlow().add(controlFlowNode);
-        }
+        getMethodCalls(methodName, session, methodNode);
+        getControlFlow(methodName, session, methodNode);
 
         return methodNode;
     }
 
+    private void getControlFlow(String methodName, Session session, MethodNode methodNode) {
+        Result controlFlowResult = session.run(CypherConstants.GET_CONTROL_FLOW, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
+        while (controlFlowResult.hasNext()) {
+            Record record = controlFlowResult.next();
+            ControlFlowNode controlFlowNode = new ControlFlowNode();
+            controlFlowNode.setType(record.get(CypherConstants.PROP_TYPE).asString());
+            controlFlowNode.setCondition(record.get(CypherConstants.PROP_CONDITION).asString());
+            methodNode.getControlFlow().add(controlFlowNode);
+        }
+    }
+
+    private void getMethodCalls(String methodName, Session session, MethodNode methodNode) {
+        Result callsResult = session.run(CypherConstants.GET_METHOD_CALLS, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
+        while (callsResult.hasNext()) {
+            String calledMethod = callsResult.next().get(CypherConstants.PROP_CALLED_METHOD).asString();
+            methodNode.getMethodCalls().add(new MethodCallNode(calledMethod));
+        }
+    }
 
     public static void main(String... args) throws IOException {
         System.out.println(getTopLevelNodesAsJSONString());
