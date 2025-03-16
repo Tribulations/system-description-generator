@@ -124,7 +124,15 @@ public class InputController {
      * Initializes the UI and model, and ensures resources are cleaned up on shutdown.
      * @param args Command-line arguments (not used).
      */
-    public static void main(String[] args) {
+//    public static void main(String[] args) {
+//        start();
+//    }
+
+    /**
+     * Method to start the application.
+     * Initializes the UI and model, and ensures resources are cleaned up on shutdown.
+     */
+    public static void start() {
         SwingUtilities.invokeLater(() -> {
             InputView view = new InputView();
             KnowledgeGraphService graphService = new KnowledgeGraphService();  // Initialize KnowledgeGraphService
