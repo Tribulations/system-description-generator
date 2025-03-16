@@ -42,8 +42,6 @@ public class KnowledgeGraphService implements AutoCloseable {
     public Observable<ProcessingResult> processKnowledgeGraph(String inputPath) {
         LoggerUtil.info(getClass(), "Processing knowledge graph for path: {}", inputPath);
 
-        deleteAllData();  // Ensure this runs only ONCE
-
         return inputHandler.processFilesRx(inputPath)
                 .observeOn(Schedulers.io())  // Keep processing on I/O thread
                 .doOnNext(this::processFile)
@@ -53,8 +51,6 @@ public class KnowledgeGraphService implements AutoCloseable {
 
     private void processFile(ProcessingResult result) {
         LoggerUtil.info(getClass(), "Processing file: {}", result.file());
-
-        //deleteAllData();
 
         // Insert the knowledge graph into the database
         insertToGraphDatabase(result.file());
