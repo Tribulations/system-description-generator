@@ -55,7 +55,7 @@ public class ASTAnalyzer {
 
             analyzeInheritance(classDecl, className);
             analyzeInterfaceImplementations(classDecl, className);
-            analyzeFields(classDecl, className); // TODO: Maybe not needed?
+            // analyzeFields(classDecl, className); // TODO: Maybe not needed?
             analyzeMethods(classDecl, className);
         });
     }
@@ -83,7 +83,7 @@ public class ASTAnalyzer {
             LoggerUtil.debug(getClass(), "Analyzing method: {}.{}", className, methodName);
             dbOps.createMethodNode(className, methodName);
             analyzeMethodCalls(method, methodName);
-            analyzeControlFlow(method, methodName);
+            // analyzeControlFlow(method, methodName);
         });
     }
 
