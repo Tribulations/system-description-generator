@@ -62,7 +62,8 @@ public class GraphDataToJsonConverter {
         SystemStructure system = new SystemStructure();
         
         try (Session session = neo4jDriver.session()) {            
-            Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS, Map.of(CypherConstants.PROP_LIMIT, limit));
+            Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS,
+                    Map.of(CypherConstants.PROP_LIMIT, limit));
 
             while (result.hasNext()) {
                 Record record = result.next();
@@ -72,6 +73,23 @@ public class GraphDataToJsonConverter {
             }
         }
         
+        return objectMapper.writeValueAsString(system);
+    }
+
+    public String jsonifyAllClasses(int limit) throws IOException {
+        SystemStructure system = new SystemStructure();
+
+        try (Session session = neo4jDriver.session()) {
+            Result result = session.run(CypherConstants.FIND_ALL_CLASSES);
+
+            while (result.hasNext()) {
+                Record record = result.next();
+                String className = record.get(CypherConstants.PROP_CLASS_NAME).asString();
+                ClassNode classNode = buildClassNode(className, session);
+                system.addClass(classNode);
+            }
+        }
+
         return objectMapper.writeValueAsString(system);
     }
 
@@ -89,7 +107,7 @@ public class GraphDataToJsonConverter {
         getInheritance(className, session, classNode);
         getImplementedInterfaces(className, session, classNode);
         getMethods(className, session, classNode);
-        getMemberFields(className, session, classNode);
+        // getMemberFields(className, session, classNode);
 
         return classNode;
     }
