@@ -70,10 +70,10 @@ public final class CypherConstants {
 
     /** Query to connect Class to implemented interface. Parameters: className, interfaceName */
     public static final String CONNECT_INTERFACE_IMPLEMENTATION = 
-        "MATCH (c:Class {className: $className}), (i:Interface {className: $interfaceName}) " +
+        "MATCH (c:Class {className: $className}), (i:Interface {interfaceName: $interfaceName}) " +
         "MERGE (c)-[:IMPLEMENTS]->(i)";
 
-    /** Query to create Interface node. Parameters: name */
+    /** Query to create Interface node. Parameters: interfaceName */
     public static final String CREATE_INTERFACE = 
         "MERGE (i:Interface {interfaceName: $interfaceName})";
 
@@ -124,4 +124,8 @@ public final class CypherConstants {
     public static final String GET_METHOD_CALLS =
         "MATCH (m:Method {methodName: $methodName})-[:CALLS]->(f:MethodCall) " +
                 "RETURN f.calledMethod as calledMethod";
+
+    /** Query to find all classes. Parameters: none */
+    public static final String FIND_ALL_CLASSES = 
+        "MATCH (c:Class) RETURN c.className as className";
 }
