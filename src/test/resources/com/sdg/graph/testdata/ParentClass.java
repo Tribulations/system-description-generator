@@ -1,5 +1,9 @@
 package com.sdg.graph.testdata;
 
+import java.util.List;
+import java.util.ArrayList;
+import java.io.Serializable;
+
 public class ParentClass implements TestInterface {
     private String parentField;
     
