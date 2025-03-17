@@ -9,6 +9,7 @@ public class ClassNode {
     private List<String> implementedInterfaces = new ArrayList<>();
     private List<MethodNode> methods = new ArrayList<>();
     private List<ClassFieldNode> fields = new ArrayList<>();
+    private List<String> imports = new ArrayList<>();
 
     public ClassNode() {}
 
@@ -54,5 +55,13 @@ public class ClassNode {
 
     public void setFields(List<ClassFieldNode> fields) {
         this.fields = fields;
+    }
+
+    public List<String> getImports() {
+        return imports;
+    }
+
+    public void setImports(List<String> imports) {
+        this.imports = imports;
     }
 }
