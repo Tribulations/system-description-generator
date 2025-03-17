@@ -82,7 +82,7 @@ class GraphDataToJsonConverterTest {
         TimeUnit.MILLISECONDS.sleep(500);
 
         // Get JSON representation and parse it
-        String json = graphDataToJsonConverter.jsonifyMostSignificantClasses(3);
+        String json = graphDataToJsonConverter.jsonifyAllClasses(3);
         JsonNode root = mapper.readTree(json);
         
         // Store classes array for test methods
