@@ -169,6 +169,25 @@ public class GraphDatabaseOperations implements AutoCloseable {
     }
 
     /**
+     * Creates a node representing an import statement and connects it to the importing class.
+     * 
+     * @param className the name of the class containing the import
+     * @param importName the fully qualified name of the imported type
+     */
+    public void createImportRelationship(String className, String importName) {
+        try (Session session = driver.session()) {
+            session.executeWrite(tx -> {
+                LoggerUtil.debug(getClass(), "Creating import relationship: {} imports {}", className, importName);
+                tx.run(CypherConstants.CREATE_IMPORT, parameters(CypherConstants.PROP_IMPORT_NAME, importName));
+                tx.run(CypherConstants.CONNECT_CLASS_IMPORT,
+                        parameters(CypherConstants.PROP_CLASS_NAME, className, 
+                                 CypherConstants.PROP_IMPORT_NAME, importName));
+                return null;
+            });
+        }
+    }
+
+    /**
      * Deletes all data from the graph database.
      * 
      * @throws RuntimeException if there is an error during deletion
