@@ -107,6 +107,7 @@ public class GraphDataToJsonConverter {
         getInheritance(className, session, classNode);
         getImplementedInterfaces(className, session, classNode);
         getMethods(className, session, classNode);
+        getImports(className, session, classNode);
         // getMemberFields(className, session, classNode);
 
         return classNode;
@@ -153,6 +154,14 @@ public class GraphDataToJsonConverter {
         while (inheritanceResult.hasNext()) {
             String parentName = inheritanceResult.next().get(CypherConstants.PROP_PARENT_NAME).asString();
             classNode.getExtendedClasses().add(parentName);
+        }
+    }
+
+    private void getImports(String className, Session session, ClassNode classNode) {
+        Result importsResult = session.run(CypherConstants.GET_CLASS_IMPORTS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
+        while (importsResult.hasNext()) {
+            String importName = importsResult.next().get(CypherConstants.PROP_IMPORT_NAME).asString();
+            classNode.getImports().add(importName);
         }
     }
 
