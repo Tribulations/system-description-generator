@@ -55,8 +55,17 @@ public class ASTAnalyzer {
 
             analyzeInheritance(classDecl, className);
             analyzeInterfaceImplementations(classDecl, className);
+            analyzeImports(cu, className);
             // analyzeFields(classDecl, className); // TODO: Maybe not needed?
             // analyzeMethods(classDecl, className); // TODO: Commented out while concentrating on analyzing imports
+        });
+    }
+
+    private void analyzeImports(CompilationUnit cu, String className) {
+        cu.getImports().forEach(importDecl -> {
+            String importName = importDecl.getNameAsString();
+            LoggerUtil.debug(getClass(), "Found import in {}: {}", className, importName);
+            dbOps.createImportRelationship(className, importName);
         });
     }
 
