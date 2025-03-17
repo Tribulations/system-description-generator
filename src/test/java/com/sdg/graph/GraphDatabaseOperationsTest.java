@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.neo4j.driver.Result;
+import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
 import java.util.List;
@@ -106,7 +107,7 @@ class GraphDatabaseOperationsTest {
                     CypherConstants.PROP_CLASS_NAME, CypherConstants.PROP_METHOD_NAME),
                 parameters("className", PARENT_CLASS)
             );
-            var methodNames = result.list(record -> record.get("name").asString());
+            List<String> methodNames = result.list(record -> record.get("name").asString());
             
             assertEquals(2, methodNames.size(), "Should have exactly two methods");
             assertTrue(methodNames.contains("testMethod"), "testMethod should exist");
@@ -131,7 +132,7 @@ class GraphDatabaseOperationsTest {
                     CypherConstants.PROP_VISIBILITY),
                 parameters("className", PARENT_CLASS)
             );
-            var record = result.single();
+            Record record = result.single();
             
             assertEquals("testField", record.get("name").asString(), "Field name should match");
             assertEquals("String", record.get("type").asString(), "Field type should match");
@@ -181,7 +182,7 @@ class GraphDatabaseOperationsTest {
                     CypherConstants.PROP_CLASS_NAME,
                     CypherConstants.PROP_METHOD_NAME)
             );
-            var methodRecords = methodResult.list();
+            List<Record> methodRecords = methodResult.list();
             assertEquals(2, methodRecords.size(), "Should have methods in both classes");
 
             // Verify fields
@@ -191,8 +192,72 @@ class GraphDatabaseOperationsTest {
                     CypherConstants.PROP_CLASS_NAME,
                     CypherConstants.PROP_FIELD_NAME)
             );
-            var fieldRecords = fieldResult.list();
+            List<Record> fieldRecords = fieldResult.list();
             assertEquals(2, fieldRecords.size(), "Should have fields in both classes");
+        }
+    }
+
+    @Test
+    void testCreateImportRelationship() {
+        // Create class and import nodes
+        String importName = "java.util.List";
+        dbOps.createClassNode(PARENT_CLASS);
+        dbOps.createImportRelationship(PARENT_CLASS, importName);
+
+        // Verify import node and relationship
+        try (Session session = dbOps.getDriver().session()) {
+            // Check import node exists
+            Result importResult = session.run(
+                String.format("MATCH (i:Import {%s: $importName}) RETURN count(*) as count",
+                    CypherConstants.PROP_IMPORT_NAME),
+                parameters("importName", importName)
+            );
+            assertEquals(1, importResult.single().get("count").asLong(), "Should have one import node");
+
+            // Check relationship exists
+            Result relationshipResult = session.run(
+                String.format("MATCH (c:Class {%s: $className})-[:IMPORTS]->(i:Import {%s: $importName}) " +
+                    "RETURN count(*) as count",
+                    CypherConstants.PROP_CLASS_NAME, CypherConstants.PROP_IMPORT_NAME),
+                parameters("className", PARENT_CLASS, "importName", importName)
+            );
+            assertEquals(1, relationshipResult.single().get("count").asLong(), 
+                "Should have one import relationship");
+        }
+    }
+
+    @Test
+    void testMultipleImports() {
+        // Create class and multiple imports
+        List<String> imports = List.of(
+            "java.util.List",
+            "java.util.Map",
+            "java.io.File"
+        );
+
+        dbOps.createClassNode(PARENT_CLASS);
+        imports.forEach(importName -> dbOps.createImportRelationship(PARENT_CLASS, importName));
+
+        // Verify all imports and relationships
+        try (Session session = dbOps.getDriver().session()) {
+            // Check total import nodes
+            Result importResult = session.run("MATCH (i:Import) RETURN count(*) as count");
+            assertEquals(imports.size(), importResult.single().get("count").asLong(), 
+                "Should have correct number of import nodes");
+
+            // Check all relationships exist
+            Result relationshipResult = session.run(
+                String.format("MATCH (c:Class {%s: $className})-[:IMPORTS]->(i:Import) " +
+                    "RETURN i.%s as importName",
+                    CypherConstants.PROP_CLASS_NAME, CypherConstants.PROP_IMPORT_NAME),
+                parameters("className", PARENT_CLASS)
+            );
+            List<String> foundImports = relationshipResult.list(record -> record.get("importName").asString());
+            assertEquals(imports.size(), foundImports.size(), 
+                "Should have correct number of import relationships");
+            imports.forEach(importName -> 
+                assertTrue(foundImports.contains(importName), 
+                    "Should contain import: " + importName));
         }
     }
 }
