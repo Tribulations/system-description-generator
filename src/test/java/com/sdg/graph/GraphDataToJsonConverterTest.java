@@ -185,11 +185,6 @@ class GraphDataToJsonConverterTest {
             "java.io.Serializable"
         );
 
-        // Get updated JSON and parse it
-        String json = graphDataToJsonConverter.jsonifyAllClasses(3);
-        JsonNode root = mapper.readTree(json);
-        JsonNode updatedClasses = root.get(PROP_CLASSES);
-
         JsonNode parentClass = findNode(PARENT_CLASS);
 
         assertNotNull(parentClass, "ParentClass should be present in the JSON");
@@ -210,6 +205,7 @@ class GraphDataToJsonConverterTest {
                     break;
                 }
             }
+
             assertTrue(found, "Should find import: " + expectedImport);
         }
     }
