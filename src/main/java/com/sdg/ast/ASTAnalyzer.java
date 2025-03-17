@@ -56,7 +56,7 @@ public class ASTAnalyzer {
             analyzeInheritance(classDecl, className);
             analyzeInterfaceImplementations(classDecl, className);
             // analyzeFields(classDecl, className); // TODO: Maybe not needed?
-            analyzeMethods(classDecl, className);
+            // analyzeMethods(classDecl, className); // TODO: Commented out while concentrating on analyzing imports
         });
     }
 
