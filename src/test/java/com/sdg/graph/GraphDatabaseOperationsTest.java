@@ -39,10 +39,8 @@ class GraphDatabaseOperationsTest {
 
         // Verify nodes were created
         try (Session session = dbOps.getDriver().session()) {
-            Result result = session.run(
-                String.format("MATCH (c:Class) RETURN c.%s as name", CypherConstants.PROP_CLASS_NAME)
-            );
-            List<String> classNames = result.list(record -> record.get("name").asString());
+            Result result = session.run(CypherConstants.FIND_ALL_CLASSES);
+            List<String> classNames = result.list(record -> record.get(CypherConstants.PROP_CLASS_NAME).asString());
             
             assertTrue(classNames.contains(CHILD_CLASS), "ChildClass node should exist");
             assertTrue(classNames.contains(PARENT_CLASS), "ParentClass node should exist");
@@ -59,13 +57,10 @@ class GraphDatabaseOperationsTest {
 
         // Verify inheritance relationship
         try (Session session = dbOps.getDriver().session()) {
-            Result result = session.run(
-                String.format("MATCH (child:Class {%s: $childName})-[:EXTENDS]->(parent:Class {%s: $parentName}) RETURN count(*) as count",
-                    CypherConstants.PROP_CLASS_NAME, CypherConstants.PROP_CLASS_NAME),
-                parameters("childName", CHILD_CLASS, "parentName", PARENT_CLASS)
-            );
-            long relationshipCount = result.single().get("count").asLong();
-            assertEquals(1, relationshipCount, "Should have one inheritance relationship");
+            Result result = session.run(CypherConstants.GET_CLASS_INHERITANCE,
+                parameters(CypherConstants.PROP_CLASS_NAME, CHILD_CLASS));
+            String parentName = result.single().get(CypherConstants.PROP_PARENT_NAME).asString();
+            assertEquals(PARENT_CLASS, parentName, "Should have correct inheritance relationship");
         }
     }
 
@@ -75,21 +70,12 @@ class GraphDatabaseOperationsTest {
         dbOps.createClassNode(PARENT_CLASS);
         dbOps.createInterfaceImplementation(PARENT_CLASS, TEST_INTERFACE);
 
-        // Verify interface node and implementation relationship
+        // Verify interface implementation
         try (Session session = dbOps.getDriver().session()) {
-            Result interfaceResult = session.run(
-                String.format("MATCH (i:Interface {%s: $interfaceName}) RETURN count(*) as count",
-                    CypherConstants.PROP_INTERFACE_NAME),
-                parameters("interfaceName", TEST_INTERFACE)
-            );
-            assertEquals(1, interfaceResult.single().get("count").asLong(), "Should have one interface node");
-
-            Result implementsResult = session.run(
-                String.format("MATCH (c:Class {%s: $className})-[:IMPLEMENTS]->(i:Interface {%s: $interfaceName}) RETURN count(*) as count",
-                    CypherConstants.PROP_CLASS_NAME, CypherConstants.PROP_INTERFACE_NAME),
-                parameters("className", PARENT_CLASS, "interfaceName", TEST_INTERFACE)
-            );
-            assertEquals(1, implementsResult.single().get("count").asLong(), "Should have one implements relationship");
+            Result interfaceResult = session.run(CypherConstants.GET_CLASS_INTERFACES,
+                parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
+            String interfaceName = interfaceResult.single().get(CypherConstants.PROP_INTERFACE_NAME).asString();
+            assertEquals(TEST_INTERFACE, interfaceName, "Should have correct interface implementation");
         }
     }
 
@@ -102,12 +88,9 @@ class GraphDatabaseOperationsTest {
 
         // Verify method nodes and their relationships to the class
         try (Session session = dbOps.getDriver().session()) {
-            Result result = session.run(
-                String.format("MATCH (c:Class {%s: $className})-[:HAS_METHOD]->(m:Method) RETURN m.%s as name",
-                    CypherConstants.PROP_CLASS_NAME, CypherConstants.PROP_METHOD_NAME),
-                parameters("className", PARENT_CLASS)
-            );
-            List<String> methodNames = result.list(record -> record.get("name").asString());
+            Result result = session.run(CypherConstants.GET_CLASS_METHODS,
+                parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
+            List<String> methodNames = result.list(record -> record.get(CypherConstants.PROP_METHOD_NAME).asString());
             
             assertEquals(2, methodNames.size(), "Should have exactly two methods");
             assertTrue(methodNames.contains("testMethod"), "testMethod should exist");
@@ -123,20 +106,52 @@ class GraphDatabaseOperationsTest {
 
         // Verify field node and its relationship to the class
         try (Session session = dbOps.getDriver().session()) {
-            Result result = session.run(
-                String.format("MATCH (c:Class {%s: $className})-[:HAS_FIELD]->(f:ClassField) " +
-                "RETURN f.%s as name, f.%s as type, f.%s as visibility",
-                    CypherConstants.PROP_CLASS_NAME,
-                    CypherConstants.PROP_FIELD_NAME,
-                    CypherConstants.PROP_FIELD_TYPE,
-                    CypherConstants.PROP_VISIBILITY),
-                parameters("className", PARENT_CLASS)
-            );
+            Result result = session.run(CypherConstants.GET_CLASS_FIELDS,
+                parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
             Record record = result.single();
             
-            assertEquals("testField", record.get("name").asString(), "Field name should match");
-            assertEquals("String", record.get("type").asString(), "Field type should match");
-            assertEquals("private", record.get("visibility").asString(), "Field visibility should match");
+            assertEquals("testField", record.get(CypherConstants.PROP_FIELD_NAME).asString(), "Field name should match");
+            assertEquals("String", record.get(CypherConstants.PROP_FIELD_TYPE).asString(), "Field type should match");
+            assertEquals("private", record.get(CypherConstants.PROP_VISIBILITY).asString(), "Field visibility should match");
+        }
+    }
+
+    @Test
+    void testCreateImportRelationship() {
+        // Create class and import nodes
+        String importName = "java.util.List";
+        dbOps.createClassNode(PARENT_CLASS);
+        dbOps.createImportRelationship(PARENT_CLASS, importName);
+
+        // Verify import relationship
+        try (Session session = dbOps.getDriver().session()) {
+            Result result = session.run(CypherConstants.GET_CLASS_IMPORTS,
+                parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
+            String foundImport = result.single().get(CypherConstants.PROP_IMPORT_NAME).asString();
+            assertEquals(importName, foundImport, "Should have correct import relationship");
+        }
+    }
+
+    @Test
+    void testMultipleImports() {
+        // Create class and multiple imports
+        List<String> imports = List.of(
+            "java.util.List",
+            "java.util.Map",
+            "java.io.File"
+        );
+
+        dbOps.createClassNode(PARENT_CLASS);
+        imports.forEach(importName -> dbOps.createImportRelationship(PARENT_CLASS, importName));
+
+        // Verify all imports
+        try (Session session = dbOps.getDriver().session()) {
+            Result result = session.run(CypherConstants.GET_CLASS_IMPORTS,
+                parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
+            List<String> foundImports = result.list(record -> record.get(CypherConstants.PROP_IMPORT_NAME).asString());
+            assertEquals(imports.size(), foundImports.size(), "Should have correct number of imports");
+            imports.forEach(importName -> 
+                assertTrue(foundImports.contains(importName), "Should contain import: " + importName));
         }
     }
 
@@ -158,106 +173,53 @@ class GraphDatabaseOperationsTest {
 
         // Verify the complete structure
         try (Session session = dbOps.getDriver().session()) {
-            // Verify class hierarchy
-            Result inheritanceResult = session.run(
-                String.format("MATCH (child:Class {%s: $childName})-[:EXTENDS]->(parent:Class {%s: $parentName}) " +
-                "MATCH (parent)-[:IMPLEMENTS]->(interface:Interface {%s: $interfaceName}) " +
-                "RETURN count(*) as count",
-                    CypherConstants.PROP_CLASS_NAME,
-                    CypherConstants.PROP_CLASS_NAME,
-                    CypherConstants.PROP_INTERFACE_NAME),
-                parameters(
-                    "childName", CHILD_CLASS,
-                    "parentName", PARENT_CLASS,
-                    "interfaceName", TEST_INTERFACE
-                )
-            );
-            assertEquals(1, inheritanceResult.single().get("count").asLong(), 
-                "Should have complete inheritance and interface implementation structure");
+            // Verify class inheritance
+            Result inheritanceResult = session.run(CypherConstants.GET_CLASS_INHERITANCE,
+                parameters(CypherConstants.PROP_CLASS_NAME, CHILD_CLASS));
+            String parentName = inheritanceResult.single().get(CypherConstants.PROP_PARENT_NAME).asString();
+            assertEquals(PARENT_CLASS, parentName, "Should have correct inheritance relationship");
+
+            // Verify interface implementation
+            Result interfaceResult = session.run(CypherConstants.GET_CLASS_INTERFACES,
+                parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
+            String interfaceName = interfaceResult.single().get(CypherConstants.PROP_INTERFACE_NAME).asString();
+            assertEquals(TEST_INTERFACE, interfaceName, "Should have correct interface implementation");
 
             // Verify methods
-            Result methodResult = session.run(
-                String.format("MATCH (c:Class)-[:HAS_METHOD]->(m:Method) " +
-                "RETURN c.%s as className, collect(m.%s) as methods",
-                    CypherConstants.PROP_CLASS_NAME,
-                    CypherConstants.PROP_METHOD_NAME)
-            );
-            List<Record> methodRecords = methodResult.list();
-            assertEquals(2, methodRecords.size(), "Should have methods in both classes");
+            Result parentMethodResult = session.run(CypherConstants.GET_CLASS_METHODS,
+                parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
+            List<String> parentMethods = parentMethodResult.list(record -> 
+                record.get(CypherConstants.PROP_METHOD_NAME).asString());
+            assertEquals(1, parentMethods.size(), "ParentClass should have one method");
+            assertTrue(parentMethods.contains("parentMethod"), "Should find parentMethod");
+
+            Result childMethodResult = session.run(CypherConstants.GET_CLASS_METHODS,
+                parameters(CypherConstants.PROP_CLASS_NAME, CHILD_CLASS));
+            List<String> childMethods = childMethodResult.list(record -> 
+                record.get(CypherConstants.PROP_METHOD_NAME).asString());
+            assertEquals(1, childMethods.size(), "ChildClass should have one method");
+            assertTrue(childMethods.contains("childMethod"), "Should find childMethod");
 
             // Verify fields
-            Result fieldResult = session.run(
-                String.format("MATCH (c:Class)-[:HAS_FIELD]->(f:ClassField) " +
-                "RETURN c.%s as className, collect(f.%s) as fields",
-                    CypherConstants.PROP_CLASS_NAME,
-                    CypherConstants.PROP_FIELD_NAME)
-            );
-            List<Record> fieldRecords = fieldResult.list();
-            assertEquals(2, fieldRecords.size(), "Should have fields in both classes");
-        }
-    }
+            Result parentFieldResult = session.run(CypherConstants.GET_CLASS_FIELDS,
+                parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
+            Record parentField = parentFieldResult.single();
+            assertEquals("parentField", parentField.get(CypherConstants.PROP_FIELD_NAME).asString(), 
+                "Should find parentField");
+            assertEquals("String", parentField.get(CypherConstants.PROP_FIELD_TYPE).asString(), 
+                "Should have correct field type");
+            assertEquals("protected", parentField.get(CypherConstants.PROP_VISIBILITY).asString(), 
+                "Should have correct visibility");
 
-    @Test
-    void testCreateImportRelationship() {
-        // Create class and import nodes
-        String importName = "java.util.List";
-        dbOps.createClassNode(PARENT_CLASS);
-        dbOps.createImportRelationship(PARENT_CLASS, importName);
-
-        // Verify import node and relationship
-        try (Session session = dbOps.getDriver().session()) {
-            // Check import node exists
-            Result importResult = session.run(
-                String.format("MATCH (i:Import {%s: $importName}) RETURN count(*) as count",
-                    CypherConstants.PROP_IMPORT_NAME),
-                parameters("importName", importName)
-            );
-            assertEquals(1, importResult.single().get("count").asLong(), "Should have one import node");
-
-            // Check relationship exists
-            Result relationshipResult = session.run(
-                String.format("MATCH (c:Class {%s: $className})-[:IMPORTS]->(i:Import {%s: $importName}) " +
-                    "RETURN count(*) as count",
-                    CypherConstants.PROP_CLASS_NAME, CypherConstants.PROP_IMPORT_NAME),
-                parameters("className", PARENT_CLASS, "importName", importName)
-            );
-            assertEquals(1, relationshipResult.single().get("count").asLong(), 
-                "Should have one import relationship");
-        }
-    }
-
-    @Test
-    void testMultipleImports() {
-        // Create class and multiple imports
-        List<String> imports = List.of(
-            "java.util.List",
-            "java.util.Map",
-            "java.io.File"
-        );
-
-        dbOps.createClassNode(PARENT_CLASS);
-        imports.forEach(importName -> dbOps.createImportRelationship(PARENT_CLASS, importName));
-
-        // Verify all imports and relationships
-        try (Session session = dbOps.getDriver().session()) {
-            // Check total import nodes
-            Result importResult = session.run("MATCH (i:Import) RETURN count(*) as count");
-            assertEquals(imports.size(), importResult.single().get("count").asLong(), 
-                "Should have correct number of import nodes");
-
-            // Check all relationships exist
-            Result relationshipResult = session.run(
-                String.format("MATCH (c:Class {%s: $className})-[:IMPORTS]->(i:Import) " +
-                    "RETURN i.%s as importName",
-                    CypherConstants.PROP_CLASS_NAME, CypherConstants.PROP_IMPORT_NAME),
-                parameters("className", PARENT_CLASS)
-            );
-            List<String> foundImports = relationshipResult.list(record -> record.get("importName").asString());
-            assertEquals(imports.size(), foundImports.size(), 
-                "Should have correct number of import relationships");
-            imports.forEach(importName -> 
-                assertTrue(foundImports.contains(importName), 
-                    "Should contain import: " + importName));
+            Result childFieldResult = session.run(CypherConstants.GET_CLASS_FIELDS,
+                parameters(CypherConstants.PROP_CLASS_NAME, CHILD_CLASS));
+            Record childField = childFieldResult.single();
+            assertEquals("childField", childField.get(CypherConstants.PROP_FIELD_NAME).asString(), 
+                "Should find childField");
+            assertEquals("int", childField.get(CypherConstants.PROP_FIELD_TYPE).asString(), 
+                "Should have correct field type");
+            assertEquals("private", childField.get(CypherConstants.PROP_VISIBILITY).asString(), 
+                "Should have correct visibility");
         }
     }
 }
