@@ -10,6 +10,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import java.util.Objects;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -39,6 +40,7 @@ class GraphDataToJsonConverterTest {
     private static final String PROP_EXTENDED_CLASSES = "extendedClasses";
     private static final String PROP_IMPLEMENTED_INTERFACES = "implementedInterfaces";
     private static final String PROP_METHODS = "methods";
+    private static final String PROP_IMPORTS = "imports";
 
     @BeforeEach
     void setUp() {
@@ -131,7 +133,7 @@ class GraphDataToJsonConverterTest {
         JsonNode extendedClasses = childClass.get(PROP_EXTENDED_CLASSES);
         assertNotNull(extendedClasses, "Extended classes array should be present");
         assertTrue(extendedClasses.isArray(), "Extended classes should be an array");
-        assertTrue(extendedClasses.size() > 0, "ChildClass should have at least one extended class");
+        assertTrue(!extendedClasses.isEmpty(), "ChildClass should have at least one extended class");
         assertEquals(PARENT_CLASS, extendedClasses.get(0).asText(), "ChildClass should extend ParentClass");
     }
 
@@ -201,11 +203,57 @@ class GraphDataToJsonConverterTest {
         JsonNode parentMethods = parentClass.get(PROP_METHODS);
         assertNotNull(parentMethods, "Methods array should be present in ParentClass");
         assertTrue(parentMethods.isArray(), "Methods should be an array");
-        assertTrue(parentMethods.size() > 0, "ParentClass should have at least one method");
+        assertTrue(!parentMethods.isEmpty(), "ParentClass should have at least one method");
         
         JsonNode childMethods = childClass.get(PROP_METHODS);
         assertNotNull(childMethods, "Methods array should be present in ChildClass");
         assertTrue(childMethods.isArray(), "Methods should be an array");
-        assertTrue(childMethods.size() > 0, "ChildClass should have at least one method");
+        assertTrue(!childMethods.isEmpty(), "ChildClass should have at least one method");
+    }
+
+    @Test
+    void testClassImports() throws Exception {
+        processTestFiles();
+
+        List<String> expectedImports = List.of(
+            "java.util.List",
+            "java.util.ArrayList",
+            "java.io.Serializable"
+        );
+
+        // Get updated JSON and parse it
+        String json = graphDataToJsonConverter.jsonifyAllClasses(3);
+        JsonNode root = mapper.readTree(json);
+        JsonNode updatedClasses = root.get(PROP_CLASSES);
+        
+        // Find ParentClass node
+        JsonNode parentClass = null;
+        for (JsonNode classNode : updatedClasses) {
+            if (classNode.get(PROP_NAME).asText().equals(PARENT_CLASS)) {
+                parentClass = classNode;
+                break;
+            }
+        }
+        
+        assertNotNull(parentClass, "ParentClass should be present in the JSON");
+        
+        // Verify imports
+        JsonNode imports = parentClass.get(PROP_IMPORTS);
+        assertNotNull(imports, "Imports array should be present");
+        assertTrue(imports.isArray(), "Imports should be an array");
+        assertEquals(expectedImports.size(), imports.size(), 
+            "Should have correct number of imports");
+        
+        // Check each expected import is present
+        for (String expectedImport : expectedImports) {
+            boolean found = false;
+            for (JsonNode importNode : imports) {
+                if (expectedImport.equals(importNode.asText())) {
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found, "Should find import: " + expectedImport);
+        }
     }
 }
