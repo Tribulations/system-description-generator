@@ -22,15 +22,39 @@ import com.sdg.graph.GraphDatabaseOperations;
  * 
  * The analysis results are stored using {@link GraphDatabaseOperations}.
  *
+ * The analyzer can be configured to analyze different parts of the AST by passing an {@link ASTAnalyzerConfig}.
+ * By default, the analyzer will analyze all parts of the AST.
+ *
+ * Example configuration to turn off analysis of methods, method calls and class fields:
+ * ```java
+ * ASTAnalyzerConfig config = new ASTAnalyzerConfig();
+ * config.analyzeMethods(false)
+ * .analyzeMethodCalls(false)
+ * .analyzeClassFields(false);
+ * ```
+ *
  * @see <a href="https://javadoc.io/doc/com.github.javaparser/javaparser-core/latest/index.html">JavaParser Documentation</a>
  * @author Joakim Colloz
  * @version 1.0
  */
 public class ASTAnalyzer {
     private final GraphDatabaseOperations dbOps;
+    private final ASTAnalyzerConfig config;
 
     public ASTAnalyzer(GraphDatabaseOperations dbOps) {
         this.dbOps = dbOps;
+        this.config = new ASTAnalyzerConfig();
+        LoggerUtil.info(getClass(), "Created ASTAnalyzer with default configuration");
+    }
+
+    /*
+     * Constructor for configuring what to analyze by passing an ASTAnalyzerConfig.
+     *
+     */
+    public ASTAnalyzer(GraphDatabaseOperations dbOps, ASTAnalyzerConfig config) {
+        this.dbOps = dbOps;
+        this.config = config;
+        LoggerUtil.info(getClass(), "Created ASTAnalyzer with configuration: {}", config);
     }
     
     /**
@@ -56,12 +80,17 @@ public class ASTAnalyzer {
             analyzeInheritance(classDecl, className);
             analyzeInterfaceImplementations(classDecl, className);
             analyzeImports(cu, className);
-            // analyzeFields(classDecl, className); // TODO: Maybe not needed?
-            // analyzeMethods(classDecl, className); // TODO: Commented out while concentrating on analyzing imports
+            analyzeFields(classDecl, className);
+            analyzeMethods(classDecl, className);
         });
     }
 
     private void analyzeImports(CompilationUnit cu, String className) {
+        if (!config.isAnalyzeImports()) {
+            LoggerUtil.debug(getClass(), "Skipping imports analysis due to configuration");
+            return;
+        }
+
         cu.getImports().forEach(importDecl -> {
             String importName = importDecl.getNameAsString();
             LoggerUtil.debug(getClass(), "Found import in {}: {}", className, importName);
@@ -70,6 +99,11 @@ public class ASTAnalyzer {
     }
 
     private void analyzeInheritance(ClassOrInterfaceDeclaration classDecl, String className) {
+        if (!config.isAnalyzeInheritance()) {
+            LoggerUtil.debug(getClass(), "Skipping inheritance analysis due to configuration");
+            return;
+        }
+
         classDecl.getExtendedTypes().forEach(extendedType -> {
             String parentName = extendedType.getNameAsString();
             LoggerUtil.debug(getClass(), "Found inheritance: {} extends {}", className, parentName);
@@ -79,6 +113,11 @@ public class ASTAnalyzer {
     }
 
     private void analyzeInterfaceImplementations(ClassOrInterfaceDeclaration classDecl, String className) {
+        if (!config.isAnalyzeInterfaceImplementations()) {
+            LoggerUtil.debug(getClass(), "Skipping interface implementations analysis due to configuration");
+            return;
+        }
+
         classDecl.getImplementedTypes().forEach(implementedType -> {
             String interfaceName = implementedType.getNameAsString();
             LoggerUtil.debug(getClass(), "Found interface implementation: {} implements {}", className, interfaceName);
@@ -87,16 +126,26 @@ public class ASTAnalyzer {
     }
 
     private void analyzeMethods(ClassOrInterfaceDeclaration classDecl, String className) {
+        if (!config.isAnalyzeMethods()) {
+            LoggerUtil.debug(getClass(), "Skipping methods analysis due to configuration");
+            return;
+        }
+
         classDecl.getMethods().forEach(method -> {
             String methodName = method.getNameAsString();
             LoggerUtil.debug(getClass(), "Analyzing method: {}.{}", className, methodName);
             dbOps.createMethodNode(className, methodName);
             analyzeMethodCalls(method, methodName);
-            // analyzeControlFlow(method, methodName);
+            analyzeControlFlow(method, methodName);
         });
     }
 
     private void analyzeFields(ClassOrInterfaceDeclaration classDecl, String className) {
+        if (!config.isAnalyzeClassFields()) {
+            LoggerUtil.debug(getClass(), "Skipping class fields analysis due to configuration");
+            return;
+        }
+
         classDecl.getFields().forEach(field -> {
             String fieldType = field.getElementType().asString();
             String accessModifier = field.getModifiers().isEmpty() ? "package-private" :
@@ -111,6 +160,11 @@ public class ASTAnalyzer {
     }
 
     private void analyzeMethodCalls(MethodDeclaration method, String methodName) {
+        if (!config.isAnalyzeMethodCalls()) {
+            LoggerUtil.debug(getClass(), "Skipping method calls analysis due to configuration");
+            return;
+        }
+
         method.findAll(MethodCallExpr.class).forEach(methodCall -> {
             String methodCallName = methodCall.getNameAsString();
             LoggerUtil.debug(getClass(), "Found method call: {} -> {}", methodName, methodCallName);
@@ -119,6 +173,11 @@ public class ASTAnalyzer {
     }
 
     private void analyzeControlFlow(MethodDeclaration method, String methodName) {
+        if (!config.isAnalyzeControlFlow()) {
+            LoggerUtil.debug(getClass(), "Skipping control flow analysis due to configuration");
+            return;
+        }
+
         method.findAll(IfStmt.class).forEach(ifStmt -> {
             String condition = ifStmt.getCondition().toString();
             LoggerUtil.debug(getClass(), "Found if statement in {}: {}", methodName, condition);
