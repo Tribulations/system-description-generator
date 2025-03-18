@@ -22,6 +22,8 @@ public final class CypherConstants {
     public static final String PROP_TYPE = "type";
     public static final String PROP_CONDITION = "condition";
     public static final String PROP_LIMIT = "limit";
+    public static final String PROP_IMPORT_NAME = "importName";
+    public static final String PROP_PACKAGE_NAME = "packageName";
 
     /** Query to create a new Class node. Parameters: name */
     public static final String CREATE_CLASS = 
@@ -128,4 +130,18 @@ public final class CypherConstants {
     /** Query to find all classes. Parameters: none */
     public static final String FIND_ALL_CLASSES = 
         "MATCH (c:Class) RETURN c.className as className";
+
+    /** Query to create Import node. Parameters: importName */
+    public static final String CREATE_IMPORT = 
+        "MERGE (i:Import {importName: $importName})";
+
+    /** Query to connect Class to its imports. Parameters: className, importName */
+    public static final String CONNECT_CLASS_IMPORT = 
+        "MATCH (c:Class {className: $className}), (i:Import {importName: $importName}) " +
+        "MERGE (c)-[:IMPORTS]->(i)";
+
+    /** Query to get imports of a class. Parameters: className */
+    public static final String GET_CLASS_IMPORTS =
+        "MATCH (c:Class {className: $className})-[:IMPORTS]->(i:Import) " +
+        "RETURN i.importName as importName";
 }
