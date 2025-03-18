@@ -1,5 +1,6 @@
 package com.sdg.controller;
 
+import com.sdg.ast.ASTAnalyzerConfig;
 import com.sdg.graph.KnowledgeGraphService;
 import com.sdg.model.InputHandler.ProcessingResult;
 import com.sdg.view.InputView;
@@ -135,7 +136,15 @@ public class InputController {
     public static void start() {
         SwingUtilities.invokeLater(() -> {
             InputView view = new InputView();
-            KnowledgeGraphService graphService = new KnowledgeGraphService();  // Initialize KnowledgeGraphService
+
+            // Configure ASTAnalyzer to turn off analysis of methods, method calls and class fields
+            ASTAnalyzerConfig config = new ASTAnalyzerConfig()
+                    .analyzeClassFields(false)
+                    .analyzeControlFlow(false)
+                    .analyzeMethods(false)
+                    .analyzeMethodCalls(false);
+
+            KnowledgeGraphService graphService = new KnowledgeGraphService(config);  // Initialize KnowledgeGraphService
             InputController controller = new InputController(view, graphService);
 
             // Ensure resources are disposed of when the application exits
