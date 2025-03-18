@@ -1,6 +1,7 @@
 package com.sdg.graph;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.sdg.ast.ASTAnalyzerConfig;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.model.InputHandler;
 import com.sdg.model.InputHandler.ProcessingResult;
@@ -35,6 +36,20 @@ public class KnowledgeGraphService implements AutoCloseable {
         this.parser = new JavaFileParser();
         this.dbOps = new GraphDatabaseOperations();
         this.analyzer = new ASTAnalyzer(dbOps);
+        this.visualizer = new GraphVisualizer();
+        this.inputHandler = new InputHandler();  // Initialize InputHandler
+    }
+
+    /**
+     * Constructor accepting a {@link com.sdg.ast.ASTAnalyzerConfig}.
+     *
+     * @param config the configuration for the ASTAnalyzer
+     */
+    public KnowledgeGraphService(final ASTAnalyzerConfig config) {
+        LoggerUtil.info(getClass(), "Initializing KnowledgeGraphService");
+        this.parser = new JavaFileParser();
+        this.dbOps = new GraphDatabaseOperations();
+        this.analyzer = new ASTAnalyzer(dbOps, config);
         this.visualizer = new GraphVisualizer();
         this.inputHandler = new InputHandler();  // Initialize InputHandler
     }
