@@ -173,7 +173,7 @@ public class ClaudeApiClient {
         System.out.println("\nAnswer from Claude: " + answer);
     }
 
-    private static String getAnswer(String response) {
+    public static String getAnswer(String response) {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root;
         try {
