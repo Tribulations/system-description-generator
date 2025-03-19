@@ -1,9 +1,5 @@
 package com.sdg.client;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -59,19 +55,12 @@ public class ClaudeApiClient {
      *
      * @param prompt The user message to send to Claude
      * @param maxTokens Maximum number of tokens in the response
-     * @return The API response as a String
+     * @return The API response as a JSON String
      * @throws Exception If the request fails
      */
     public String sendRequest(String prompt, int maxTokens) throws Exception {
         String requestBody = buildRequestBody(prompt, maxTokens);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
-                .header("x-api-key", API_KEY)
-                .header("anthropic-version", API_VERSION)
-                .header("content-type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
+        HttpRequest request = buildHttpRequest(requestBody);
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -92,14 +81,7 @@ public class ClaudeApiClient {
      */
     public CompletableFuture<String> sendRequestAsync(String prompt, int maxTokens) {
         String requestBody = buildRequestBody(prompt, maxTokens);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
-                .header("x-api-key", API_KEY)
-                .header("anthropic-version", API_VERSION)
-                .header("content-type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
+        HttpRequest request = buildHttpRequest(requestBody);
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
@@ -124,10 +106,20 @@ public class ClaudeApiClient {
             """, MODEL, maxTokens, escapeJsonString(prompt));
     }
 
+    private static HttpRequest buildHttpRequest(String requestBody) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(API_URL))
+                .header("x-api-key", API_KEY)
+                .header("anthropic-version", API_VERSION)
+                .header("content-type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+    }
+
     /**
      * Helper method to escape special characters in a JSON string.
-     * @param input
-     * @return
+     * @param input the input string to escape
+     * @return the escaped string
      */
     private String escapeJsonString(String input) {
         return input.replace("\\", "\\\\")
@@ -135,53 +127,5 @@ public class ClaudeApiClient {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
-    }
-
-    public static void main(String[] args) {
-        try {
-            ClaudeApiClient client = new ClaudeApiClient();
-
-            String prompt = "Show a simple C# function that adds two numbers with no additional explanation text";
-
-            System.out.println("Sending request to Claude API...");
-
-//            sendSynchronousRequestTest(client, prompt);
-
-            sendAsynchronousRequestTest(client, prompt);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static void sendAsynchronousRequestTest(ClaudeApiClient client, String prompt) {
-        client.sendRequestAsync(prompt, 1024)
-                .thenAccept(asyncResponse -> {
-                    String answer = getAnswer(asyncResponse);
-
-                    System.out.println("Response received: " + asyncResponse);
-                    System.out.println("\nAnswer from Claude: " + answer);
-                })
-                .join(); // Wait for completion in this example
-    }
-
-    private static void sendSynchronousRequestTest(ClaudeApiClient client, String prompt) throws Exception {
-        String response = client.sendRequest(prompt, 1024);
-
-        String answer = getAnswer(response);
-        System.out.println("Response received: " + response);
-        System.out.println("\nAnswer from Claude: " + answer);
-    }
-
-    public static String getAnswer(String response) {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode root;
-        try {
-            root = mapper.readTree(response);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-
-        return root.get("content").get(0).get("text").asText();
     }
 }
