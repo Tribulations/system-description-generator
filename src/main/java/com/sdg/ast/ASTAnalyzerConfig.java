@@ -111,5 +111,16 @@ public class ASTAnalyzerConfig {
         return analyzeControlFlow;
     }
 
-
+    @Override
+    public String toString() {
+        return "ASTAnalyzerConfig{" +
+                "analyzeMethods=" + analyzeMethods +
+                ", analyzeMethodCalls=" + analyzeMethodCalls +
+                ", analyzeClassFields=" + analyzeClassFields +
+                ", analyzeInheritance=" + analyzeInheritance +
+                ", analyzeImports=" + analyzeImports +
+                ", analyzeInterfaceImplementations=" + analyzeInterfaceImplementations +
+                ", analyzeControlFlow=" + analyzeControlFlow +
+                '}';
+    }
 }
