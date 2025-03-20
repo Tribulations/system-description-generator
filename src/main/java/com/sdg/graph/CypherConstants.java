@@ -80,7 +80,7 @@ public final class CypherConstants {
         "MERGE (i:Interface {interfaceName: $interfaceName})";
 
     /** Query to create ClassField node. Parameters: name, type, visibility */
-    public static final String CREATE_CLASS_FIELD = 
+    public static final String CREATE_CLASS_FIELD =
         "MERGE (f:ClassField {fieldName: $fieldName, fieldType: $fieldType, visibility: $visibility})";
 
     /** Query to connect ClassField to its Class. Parameters: className, fieldName */
@@ -144,4 +144,22 @@ public final class CypherConstants {
     public static final String GET_CLASS_IMPORTS =
         "MATCH (c:Class {className: $className})-[:IMPORTS]->(i:Import) " +
         "RETURN i.importName as importName";
+
+    /** Neo4j constraints. */
+    public static final String CREATE_CLASS_CONSTRAINTS =
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Class) REQUIRE c.className IS UNIQUE";
+    public static final String CREATE_INTERFACE_CONSTRAINTS =
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (i:Interface) REQUIRE i.interfaceName IS UNIQUE";
+
+    /** Neo4j indexes. */
+    public static final String CREATE_METHOD_INDEXES =
+            "CREATE INDEX IF NOT EXISTS FOR (m:Method) ON (m.methodName)";
+    public static final String CREATE_IMPORT_INDEXES =
+            "CREATE INDEX IF NOT EXISTS FOR (imp:Import) ON (imp.importName)";
+    public static final String CREATE_METHOD_CALL_INDEXES =
+            "CREATE INDEX IF NOT EXISTS FOR (mc:MethodCall) ON (mc.calledMethod)";
+    public static final String CREATE_CLASS_FIELD_INDEXES =
+            "CREATE INDEX IF NOT EXISTS FOR (f:ClassField) ON (f.fieldName, f.fieldType)";
+    public static final String CREATE_CONTROL_FLOW_INDEXES =
+            "CREATE INDEX IF NOT EXISTS FOR (ctrl:ControlFlow) ON (ctrl.condition, ctrl.type)";
 }
