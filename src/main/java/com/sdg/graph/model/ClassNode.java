@@ -3,12 +3,13 @@ package com.sdg.graph.model;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO: rename some of the member fields to better align with relation names
 public class ClassNode {
     private String name;
     private List<String> extendedClasses = new ArrayList<>();
     private List<String> implementedInterfaces = new ArrayList<>();
-    private List<MethodNode> methods = new ArrayList<>();
-    private List<ClassFieldNode> fields = new ArrayList<>();
+    private List<MethodNode> methods = new ArrayList<>(); // TODO : rename e.g., hasMethods
+    private List<ClassFieldNode> fields = new ArrayList<>(); // TODO : rename e.g., hasFields
     private List<String> imports = new ArrayList<>();
 
     public ClassNode() {}
