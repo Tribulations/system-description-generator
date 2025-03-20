@@ -63,15 +63,20 @@ public class KnowledgeGraphService implements AutoCloseable {
     public Observable<ProcessingResult> processKnowledgeGraph(String inputPath) {
         LoggerUtil.info(getClass(), "Processing knowledge graph for path: {}", inputPath);
 
+        long start = System.currentTimeMillis();
+
         return inputHandler.processFilesRx(inputPath)
                 .observeOn(Schedulers.io())  // Keep processing on I/O thread
                 .doOnNext(this::processFile)
                 .doOnError(this::handleError)
                 .doOnComplete(() -> {
                     LoggerUtil.info(getClass(), "All files processed successfully.");
-                    generateLLMResponseAsync()
-                        .thenAccept(this::printLLMResponseToConsole)
-                        .exceptionally(this::handleLLMResponseError);
+//                    generateLLMResponseAsync()
+//                        .thenAccept(this::printLLMResponseToConsole)
+//                        .exceptionally(this::handleLLMResponseError);
+
+                    LoggerUtil.info(getClass(), "Processing all files took {} seconds.",
+                            (System.currentTimeMillis() - start) / 1000);
                 });
     }
 
@@ -135,7 +140,7 @@ public class KnowledgeGraphService implements AutoCloseable {
         insertToGraphDatabase(result.file());
 
         // Print the knowledge graph
-        printKnowledgeGraph(result.file());
+//        printKnowledgeGraph(result.file());
     }
 
     private void insertToGraphDatabase(Path filePath) {
