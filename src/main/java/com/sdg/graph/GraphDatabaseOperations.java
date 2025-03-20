@@ -5,6 +5,7 @@ import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Session;
 import com.sdg.logging.LoggerUtil;
+import org.neo4j.driver.exceptions.Neo4jException;
 
 import static org.neo4j.driver.Values.parameters;
 
@@ -39,11 +40,20 @@ public class GraphDatabaseOperations implements AutoCloseable {
     public void createClassNode(String className) {
         try (Session session = driver.session()) {
             session.executeWrite(tx -> {
-                LoggerUtil.debug(getClass(), "Creating class node: {}", className);
-                tx.run(CypherConstants.CREATE_CLASS, parameters(CypherConstants.PROP_CLASS_NAME, 
-                className));
+                try {
+                    LoggerUtil.debug(getClass(), "Creating class node: {}", className);
+                    tx.run(CypherConstants.CREATE_CLASS, parameters(CypherConstants.PROP_CLASS_NAME,
+                            className));
+                } catch (Neo4jException e) {
+                    LoggerUtil.error(getClass(), "Failed to create class {}: {}",
+                            className, e.getMessage(), e); // TODO add error handling to all methods
+                }
+
                 return null;
             });
+        } catch (Exception e) {
+            LoggerUtil.error(getClass(), "Session error while creating class field {}: {}",
+                    className, e.getMessage(), e);
         }
     }
 
@@ -155,16 +165,24 @@ public class GraphDatabaseOperations implements AutoCloseable {
     public void createClassField(String className, String fieldName, String fieldType, String visibility) {
         try (Session session = driver.session()) {
             session.executeWrite(tx -> {
-                LoggerUtil.debug(getClass(), "Creating class field: {}.{} ({} {})", className, fieldName, visibility, fieldType);
-                tx.run(CypherConstants.CREATE_CLASS_FIELD,
-                        parameters(CypherConstants.PROP_FIELD_NAME, fieldName, 
-                                 CypherConstants.PROP_FIELD_TYPE, fieldType, 
-                                 CypherConstants.PROP_VISIBILITY, visibility));
-                tx.run(CypherConstants.CONNECT_FIELD_TO_CLASS,
-                        parameters(CypherConstants.PROP_CLASS_NAME, className, 
-                                 CypherConstants.PROP_FIELD_NAME, fieldName));
+                try {
+                    LoggerUtil.debug(getClass(), "Creating class field: {}.{} ({} {})", className, fieldName, visibility, fieldType);
+                    tx.run(CypherConstants.CREATE_CLASS_FIELD,
+                            parameters(CypherConstants.PROP_FIELD_NAME, fieldName,
+                                    CypherConstants.PROP_FIELD_TYPE, fieldType,
+                                    CypherConstants.PROP_VISIBILITY, visibility));
+                    tx.run(CypherConstants.CONNECT_FIELD_TO_CLASS,
+                            parameters(CypherConstants.PROP_CLASS_NAME, className,
+                                    CypherConstants.PROP_FIELD_NAME, fieldName));
+                } catch (Neo4jException e) {
+                    LoggerUtil.error(getClass(), "Failed to create class field {}.{}: {}",
+                            className, fieldName, e.getMessage(), e); // TODO add error handling to all methods
+                }
                 return null;
             });
+        } catch (Exception e) {
+            LoggerUtil.error(getClass(), "Session error while creating class field {}.{}: {}",
+                    className, fieldName, e.getMessage(), e);
         }
     }
 
