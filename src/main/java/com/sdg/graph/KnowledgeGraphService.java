@@ -39,6 +39,7 @@ public class KnowledgeGraphService implements AutoCloseable {
         LoggerUtil.info(getClass(), "Initializing KnowledgeGraphService");
         this.parser = new JavaFileParser();
         this.dbOps = new GraphDatabaseOperations();
+        initializeSchema();
         this.analyzer = new ASTAnalyzer(dbOps);
         this.visualizer = new GraphVisualizer();
         this.inputHandler = new InputHandler();  // Initialize InputHandler
@@ -54,6 +55,7 @@ public class KnowledgeGraphService implements AutoCloseable {
         LoggerUtil.info(getClass(), "Initializing KnowledgeGraphService");
         this.parser = new JavaFileParser();
         this.dbOps = new GraphDatabaseOperations();
+        initializeSchema();
         this.analyzer = new ASTAnalyzer(dbOps, config);
         this.visualizer = new GraphVisualizer();
         this.inputHandler = new InputHandler();  // Initialize InputHandler
@@ -99,7 +101,7 @@ public class KnowledgeGraphService implements AutoCloseable {
     /**
      * Generates the LLM response asynchronously based on the current knowledge graph.
      * This method is called to get the LLM response after all files have been processed.
-     * 
+     *
      * @return a CompletableFuture containing the LLM response
      */
     private CompletableFuture<String> generateLLMResponseAsync() {
@@ -108,10 +110,10 @@ public class KnowledgeGraphService implements AutoCloseable {
 
         return llmService.generateHighLevelDescriptionAsync(json);
     }
-    
+
     /**
      * Prints the LLM response to the console with formatting.
-     * 
+     *
      * @param response the LLM response to print
      */
     private void printLLMResponseToConsole(String response) {
@@ -120,10 +122,10 @@ public class KnowledgeGraphService implements AutoCloseable {
         System.out.println(response);
         System.out.println("===========================================\n");
     }
-    
+
     /**
      * Handles errors that occur during LLM response generation.
-     * 
+     *
      * @param ex the exception that occurred
      * @return null to satisfy the CompletableFuture.
      */
@@ -169,5 +171,13 @@ public class KnowledgeGraphService implements AutoCloseable {
     public void close() {
         LoggerUtil.info(getClass(), "Closing KnowledgeGraphService");
         dbOps.close();
+    }
+
+    /**
+     * Initialize the schema if it doesn't exist.
+     */
+    private void initializeSchema() {
+        SchemaInitializer initializer = new SchemaInitializer(dbOps.getDriver());
+        initializer.initializeSchema();
     }
 }
