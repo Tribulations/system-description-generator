@@ -11,6 +11,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.neo4j.driver.Values.parameters;
 
 /**
@@ -39,6 +41,37 @@ class GraphDatabaseOperationsTest {
             dbOps.endBatchSession();
         }
         dbOps.close();
+    }
+
+    @Test
+    void testBatchTransactionRequired() {
+        // First test that operations work with an active batch transaction
+        assertDoesNotThrow(() -> dbOps.createClassNode("TestClass"), 
+            "Should not throw exception when batch transaction is active");
+        
+        // Commit the current transaction
+        dbOps.commitBatchTransaction();
+        
+        // Now test that operations throw exceptions when no batch transaction is active
+        assertThrows(IllegalStateException.class, 
+            () -> dbOps.createClassNode("AnotherClass"),
+            "Should throw IllegalStateException when no batch transaction is active");
+    }
+    
+    @Test
+    void testBatchSessionRequired() {
+        // First test that operations work with an active batch session
+        assertDoesNotThrow(() -> dbOps.startBatchTransaction(), 
+            "Should not throw exception when batch session is active");
+        
+        // End the current session (and transaction)
+        dbOps.commitBatchTransaction();
+        dbOps.endBatchSession();
+        
+        // Now test that operations throw exceptions when no batch session is active
+        assertThrows(IllegalStateException.class, 
+            () -> dbOps.startBatchTransaction(),
+            "Should throw IllegalStateException when no batch session is active");
     }
 
     @Test
