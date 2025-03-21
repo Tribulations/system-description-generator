@@ -6,6 +6,7 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
+import org.neo4j.driver.Value;
 
 import static org.neo4j.driver.Values.parameters;
 
@@ -146,18 +147,40 @@ public class GraphDatabaseOperations implements AutoCloseable {
     }
 
     /**
+     * Verifies that a batch transaction is active before executing database operations.
+     * 
+     * @param operationName the name of the operation being performed to be used for error message
+     * @throws IllegalStateException if no batch transaction is active
+     */
+    private void verifyBatchTransactionActive(String operationName) {
+        if (batchTransaction == null) {
+            throw new IllegalStateException("Cannot " + operationName + " outside of a batch transaction");
+        }
+    }
+
+    /**
+     * Executes a Cypher query within the current batch transaction.
+     * 
+     * @param query the Cypher query to execute
+     * @param params the parameters for the query
+     * @throws IllegalStateException if no batch transaction is active
+     */
+    private void executeInBatchTransaction(String query, Value params) {
+        verifyBatchTransactionActive("execute query");
+        batchTransaction.run(query, params);
+    }
+
+    /**
      * Creates a node representing a Java class in the graph database.
      *
      * @param className the name of the class to create
      * @throws IllegalStateException if no batch transaction is active
      */
     public void createClassNode(String className) throws IllegalStateException {
-        if (batchTransaction != null) {
-            LoggerUtil.debug(getClass(), "Creating class node in batch transaction: {}", className);
-            batchTransaction.run(CypherConstants.CREATE_CLASS, parameters(CypherConstants.PROP_CLASS_NAME, className));
-        } else {
-            throw new IllegalStateException("Cannot create class node outside of a batch transaction");
-        }
+        verifyBatchTransactionActive("create class node");
+        LoggerUtil.debug(getClass(), "Creating class node in batch transaction: {}", className);
+        executeInBatchTransaction(CypherConstants.CREATE_CLASS, 
+                parameters(CypherConstants.PROP_CLASS_NAME, className));
     }
 
     /**
@@ -168,16 +191,17 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @throws IllegalStateException if no batch transaction is active
      */
     public void createMethodNode(String className, String methodName) throws IllegalStateException {
-        if (batchTransaction != null) {
-            LoggerUtil.debug(getClass(), "Creating method node in batch transaction: {}.{}", className, methodName);
-            batchTransaction.run(CypherConstants.CREATE_METHOD,
-                    parameters(CypherConstants.PROP_METHOD_NAME, methodName));
-            batchTransaction.run(CypherConstants.CONNECT_METHOD_TO_CLASS,
-                    parameters(CypherConstants.PROP_CLASS_NAME, className,
-                            CypherConstants.PROP_METHOD_NAME, methodName));
-        } else {
-            throw new IllegalStateException("Cannot create method node outside of a batch transaction");
-        }
+        verifyBatchTransactionActive("create method node");
+        LoggerUtil.debug(getClass(), "Creating method node in batch transaction: {}.{}", className, methodName);
+        
+        // Create method node
+        executeInBatchTransaction(CypherConstants.CREATE_METHOD,
+                parameters(CypherConstants.PROP_METHOD_NAME, methodName));
+        
+        // Connect method to class
+        executeInBatchTransaction(CypherConstants.CONNECT_METHOD_TO_CLASS,
+                parameters(CypherConstants.PROP_CLASS_NAME, className,
+                        CypherConstants.PROP_METHOD_NAME, methodName));
     }
 
     /**
@@ -188,16 +212,17 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @throws IllegalStateException if no batch transaction is active
      */
     public void createMethodCallNode(String callerMethod, String calledMethod) throws IllegalStateException {
-        if (batchTransaction != null) {
-            LoggerUtil.debug(getClass(), "Creating method call in batch transaction: {} -> {}", callerMethod, calledMethod);
-            batchTransaction.run(CypherConstants.CREATE_METHOD_CALL,
-                    parameters(CypherConstants.PROP_CALLED_METHOD, calledMethod));
-            batchTransaction.run(CypherConstants.CONNECT_CALL_TO_METHOD,
-                    parameters(CypherConstants.PROP_METHOD_NAME, callerMethod,
-                            CypherConstants.PROP_CALLED_METHOD, calledMethod));
-        } else {
-            throw new IllegalStateException("Cannot create method call node outside of a batch transaction");
-        }
+        verifyBatchTransactionActive("create method call node");
+        LoggerUtil.debug(getClass(), "Creating method call in batch transaction: {} -> {}", callerMethod, calledMethod);
+        
+        // Create method call node
+        executeInBatchTransaction(CypherConstants.CREATE_METHOD_CALL,
+                parameters(CypherConstants.PROP_CALLED_METHOD, calledMethod));
+        
+        // Connect call to method
+        executeInBatchTransaction(CypherConstants.CONNECT_CALL_TO_METHOD,
+                parameters(CypherConstants.PROP_METHOD_NAME, callerMethod,
+                        CypherConstants.PROP_CALLED_METHOD, calledMethod));
     }
 
     /**
@@ -208,14 +233,13 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @throws IllegalStateException if no batch transaction is active
      */
     public void createInheritanceRelationship(String childClass, String parentClass) throws IllegalStateException {
-        if (batchTransaction != null) {
-            LoggerUtil.debug(getClass(), "Creating inheritance relationship in batch transaction: {} extends {}", childClass, parentClass);
-            batchTransaction.run(CypherConstants.CONNECT_CLASS_INHERITANCE,
-                    parameters(CypherConstants.PROP_CLASS_NAME, childClass,
-                            CypherConstants.PROP_PARENT_NAME, parentClass));
-        } else {
-            throw new IllegalStateException("Cannot create class node outside of a batch transaction");
-        }
+        verifyBatchTransactionActive("create inheritance relationship");
+        LoggerUtil.debug(getClass(), "Creating inheritance relationship in batch transaction: {} extends {}",
+                childClass, parentClass);
+        
+        executeInBatchTransaction(CypherConstants.CONNECT_CLASS_INHERITANCE,
+                parameters(CypherConstants.PROP_CLASS_NAME, childClass,
+                        CypherConstants.PROP_PARENT_NAME, parentClass));
     }
 
     /**
@@ -226,16 +250,18 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @throws IllegalStateException if no batch transaction is active
      */
     public void createInterfaceImplementation(String implementingClass, String interfaceName) {
-        if (batchTransaction != null) {
-            LoggerUtil.debug(getClass(), "Creating interface implementation in batch transaction: {} implements {}", implementingClass, interfaceName);
-            batchTransaction.run(CypherConstants.CREATE_INTERFACE,
-                    parameters(CypherConstants.PROP_INTERFACE_NAME, interfaceName));
-            batchTransaction.run(CypherConstants.CONNECT_INTERFACE_IMPLEMENTATION,
-                    parameters(CypherConstants.PROP_CLASS_NAME, implementingClass,
-                            CypherConstants.PROP_INTERFACE_NAME, interfaceName));
-        } else {
-            throw new IllegalStateException("Cannot create interface implementation outside of a batch transaction");
-        }
+        verifyBatchTransactionActive("create interface implementation");
+        LoggerUtil.debug(getClass(), "Creating interface implementation in batch transaction: {} implements {}",
+                implementingClass, interfaceName);
+        
+        // Create interface node
+        executeInBatchTransaction(CypherConstants.CREATE_INTERFACE,
+                parameters(CypherConstants.PROP_INTERFACE_NAME, interfaceName));
+        
+        // Connect implementation relationship
+        executeInBatchTransaction(CypherConstants.CONNECT_INTERFACE_IMPLEMENTATION,
+                parameters(CypherConstants.PROP_CLASS_NAME, implementingClass,
+                        CypherConstants.PROP_INTERFACE_NAME, interfaceName));
     }
 
     /**
@@ -246,16 +272,18 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @throws IllegalStateException if no batch transaction is active
      */
     public void createImportRelationship(String className, String importName) {
-        if (batchTransaction != null) {
-            LoggerUtil.debug(getClass(), "Creating import relationship in batch transaction: {} imports {}", className, importName);
-            batchTransaction.run(CypherConstants.CREATE_IMPORT,
-                    parameters(CypherConstants.PROP_IMPORT_NAME, importName));
-            batchTransaction.run(CypherConstants.CONNECT_CLASS_IMPORT,
-                    parameters(CypherConstants.PROP_CLASS_NAME, className,
-                            CypherConstants.PROP_IMPORT_NAME, importName));
-        } else {
-            throw new IllegalStateException("Cannot create import relationship outside of a batch transaction");
-        }
+        verifyBatchTransactionActive("create import relationship");
+        LoggerUtil.debug(getClass(), "Creating import relationship in batch transaction: {} imports {}",
+                className, importName);
+        
+        // Create import node
+        executeInBatchTransaction(CypherConstants.CREATE_IMPORT,
+                parameters(CypherConstants.PROP_IMPORT_NAME, importName));
+        
+        // Connect import to class
+        executeInBatchTransaction(CypherConstants.CONNECT_CLASS_IMPORT,
+                parameters(CypherConstants.PROP_CLASS_NAME, className,
+                        CypherConstants.PROP_IMPORT_NAME, importName));
     }
 
     /**
@@ -268,18 +296,20 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @throws IllegalStateException if no batch transaction is active
      */
     public void createClassField(String className, String fieldName, String fieldType, String accessModifier) {
-        if (batchTransaction != null) {
-            LoggerUtil.debug(getClass(), "Creating class field in batch transaction: {}.{} ({} {})", className, fieldName, accessModifier, fieldType);
-            batchTransaction.run(CypherConstants.CREATE_CLASS_FIELD,
-                    parameters(CypherConstants.PROP_FIELD_NAME, fieldName,
-                            CypherConstants.PROP_FIELD_TYPE, fieldType,
-                            CypherConstants.PROP_VISIBILITY, accessModifier));
-            batchTransaction.run(CypherConstants.CONNECT_FIELD_TO_CLASS,
-                    parameters(CypherConstants.PROP_CLASS_NAME, className,
-                            CypherConstants.PROP_FIELD_NAME, fieldName));
-        } else {
-            throw new IllegalStateException("Cannot create class field outside of a batch transaction");
-        }
+        verifyBatchTransactionActive("create class field");
+        LoggerUtil.debug(getClass(), "Creating class field in batch transaction: {}.{} ({} {})",
+                className, fieldName, accessModifier, fieldType);
+        
+        // Create field node
+        executeInBatchTransaction(CypherConstants.CREATE_CLASS_FIELD,
+                parameters(CypherConstants.PROP_FIELD_NAME, fieldName,
+                        CypherConstants.PROP_FIELD_TYPE, fieldType,
+                        CypherConstants.PROP_VISIBILITY, accessModifier));
+        
+        // Connect field to class
+        executeInBatchTransaction(CypherConstants.CONNECT_FIELD_TO_CLASS,
+                parameters(CypherConstants.PROP_CLASS_NAME, className,
+                        CypherConstants.PROP_FIELD_NAME, fieldName));
     }
 
     /**
@@ -291,17 +321,19 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @throws IllegalStateException if no batch transaction is active
      */
     public void createControlFlowNode(String methodName, String controlFlowType, String condition) {
-        if (batchTransaction != null) {
-            LoggerUtil.debug(getClass(), "Creating control flow node in batch transaction: {} in method {}", controlFlowType, methodName);
-            batchTransaction.run(CypherConstants.CREATE_CONTROL_FLOW,
-                    parameters(CypherConstants.PROP_TYPE, controlFlowType,
-                            CypherConstants.PROP_CONDITION, condition));
-            batchTransaction.run(CypherConstants.CONNECT_CONTROL_TO_METHOD,
-                    parameters(CypherConstants.PROP_METHOD_NAME, methodName,
-                            CypherConstants.PROP_CONDITION, condition));
-        } else {
-            throw new IllegalStateException("Cannot create control flow node outside of a batch transaction");
-        }
+        verifyBatchTransactionActive("create control flow node");
+        LoggerUtil.debug(getClass(), "Creating control flow node in batch transaction: {} in method {}",
+                controlFlowType, methodName);
+        
+        // Create control flow node
+        executeInBatchTransaction(CypherConstants.CREATE_CONTROL_FLOW,
+                parameters(CypherConstants.PROP_TYPE, controlFlowType,
+                        CypherConstants.PROP_CONDITION, condition));
+        
+        // Connect control flow to method
+        executeInBatchTransaction(CypherConstants.CONNECT_CONTROL_TO_METHOD,
+                parameters(CypherConstants.PROP_METHOD_NAME, methodName,
+                        CypherConstants.PROP_CONDITION, condition));
     }
 
     /**
