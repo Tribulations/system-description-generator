@@ -17,7 +17,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * This class orchestrates the creation of a knowledge graph from Java source code.
+ * This class orchestrates the creation of a knowledge graph from Java source code and generates
+ * a high-level description using {@link LLMService}. //TODO: extract usage of LLMService to separate class?
  * It delegates the different responsibilities to specialized classes:
  * - {@link JavaFileParser}
  * - {@link ASTAnalyzer}
@@ -25,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - {@link GraphVisualizer}
  * // TODO: Add LLMService
  * // TODO: Add InputHandler
- * // TODO: Extract batch/session management to separate class
+ * // TODO: Extract batch/session management to separate class?
  *
  * @author Joakim Colloz
  * @version 1.0
@@ -38,7 +39,7 @@ public class KnowledgeGraphService implements AutoCloseable {
     private final InputHandler inputHandler;
     private final LLMService llmService;
     private final AtomicInteger processedFilesCount = new AtomicInteger(0);
-    private final int BATCH_COMMIT_THRESHOLD = 10; // Commit after every 10 files
+    private static final int BATCH_COMMIT_THRESHOLD = 10; // Commit after every 10 files
 
     // TODO add java doc
     public KnowledgeGraphService() {
@@ -78,7 +79,6 @@ public class KnowledgeGraphService implements AutoCloseable {
         long start = System.currentTimeMillis();
 
         // Start batch session before processing any files
-        // We only start a new session if one isn't already active
         if (!dbOps.isBatchSessionActive()) {
             dbOps.startBatchSession();
         }
@@ -130,7 +130,8 @@ public class KnowledgeGraphService implements AutoCloseable {
      * @return a CompletableFuture containing the LLM response
      */
     private CompletableFuture<String> generateLLMResponseAsync() {
-        LoggerUtil.info(getClass(), "Generating LLM response asynchronously after all files have been processed");
+        LoggerUtil.info(getClass(),
+                "Generating LLM response asynchronously after all files have been processed");
         String json = getKnowledgeGraphAsJson();
 
         return llmService.generateHighLevelDescriptionAsync(json);
@@ -164,39 +165,56 @@ public class KnowledgeGraphService implements AutoCloseable {
         LoggerUtil.info(getClass(), "Processing file: {}", result.file());
 
         // Start a new transaction for this file if one isn't already active
+        ensureActiveBatchTransaction();
+        
+        try {
+            // Process the file and update batch commit status
+            processFileAndManageBatch(result);
+        } catch (Exception e) {
+            handleFileProcessingError(e);
+        }
+    }
+
+    /**
+     * Ensures that a batch transaction is active before processing a file.
+     * If no transaction is active a new one is started.
+     */
+    private void ensureActiveBatchTransaction() {
         if (!dbOps.isBatchTransactionActive()) {
             dbOps.startBatchTransaction();
         }
-        // TODO: extract this logic to a separate method
-        try {
-            // Insert the knowledge graph into the database
-            insertToGraphDatabase(result.file());
+    }
 
-            // Increment the processed files count
-            int currentCount = processedFilesCount.incrementAndGet();
-            LoggerUtil.debug(getClass(), "Processed {} files", currentCount);
+    /**
+     * Processes a file by inserting it into the graph database and manages batch commits.
+     * This is achieved by calling the methods {@link #insertToGraphDatabase(Path)} and {@link #manageBatchCommits}.
+     * 
+     * @param result the processing result containing the file to process
+     */
+    private void processFileAndManageBatch(ProcessingResult result) {
+        insertToGraphDatabase(result.file());
+        manageBatchCommits();
+    }
+    
 
-            // Commit the transaction if we've reached the threshold
-            if (currentCount % BATCH_COMMIT_THRESHOLD == 0) {
-                LoggerUtil.info(getClass(), "Reached batch commit threshold ({}). Committing transaction.", BATCH_COMMIT_THRESHOLD);
+    /**
+     * Checks if the current count has reached the batch commit threshold and commits the transaction if needed.
+     * This method is synchronized to ensure thread safety when multiple files are processed in parallel.
+     */
+    private synchronized void manageBatchCommits() {
+        // Increment the processed files count
+        int currentCount = processedFilesCount.incrementAndGet();
+        LoggerUtil.debug(getClass(), "Processed {} files", currentCount);
+
+        // Commit the transaction if we've reached the threshold
+        if (currentCount % BATCH_COMMIT_THRESHOLD == 0) {
+            LoggerUtil.info(getClass(), "Reached batch commit threshold ({}). Committing transaction.",
+                    BATCH_COMMIT_THRESHOLD);
+            
+            // Only commit if there's an active transaction
+            if (dbOps.isBatchTransactionActive()) {
                 dbOps.commitBatchTransaction();
                 // Start a new transaction for the next batch
-                dbOps.startBatchTransaction();
-            }
-
-            // Print the knowledge graph
-//            printKnowledgeGraph(result.file()); // TODO: Will possibly be removed
-        } catch (Exception e) {
-            LoggerUtil.error(getClass(), "Error processing file: {}", e.getMessage(), e);
-            // Ensure transaction is rolled back if an error occurs
-            if (dbOps.isBatchTransactionActive()) {
-                try {
-                    // Roll back the transaction to avoid partial commits
-                    dbOps.rollbackBatchTransaction();
-                } catch (Exception rollbackEx) {
-                    LoggerUtil.error(getClass(), "Error rolling back transaction: {}", rollbackEx.getMessage(), rollbackEx);
-                }
-                // Start a new transaction for the next file
                 dbOps.startBatchTransaction();
             }
         }
@@ -220,6 +238,29 @@ public class KnowledgeGraphService implements AutoCloseable {
         LoggerUtil.error(getClass(), "Error processing file: {}", throwable.getMessage(), throwable);
         // Ensure batch session is ended even if an error occurs
         dbOps.endBatchSession();
+    }
+
+    /**
+     * Handles errors that occur during file processing.
+     * Rolls back the current transaction and starts a new one.
+     * 
+     * @param e the exception that occurred during processing
+     */
+    private void handleFileProcessingError(Exception e) {
+        LoggerUtil.error(getClass(), "Error processing file: {}", e.getMessage(), e);
+        // Ensure transaction is rolled back if an error occurs
+        if (dbOps.isBatchTransactionActive()) {
+            try {
+                // Roll back the transaction to avoid partial commits
+                dbOps.rollbackBatchTransaction();
+            } catch (Exception rollbackEx) {
+                LoggerUtil.error(getClass(), "Error rolling back transaction: {}",
+                        rollbackEx.getMessage(), rollbackEx);
+            } finally {
+                // Start a new transaction for the next file
+                dbOps.startBatchTransaction();
+            }
+        }
     }
 
     public void deleteAllData() {
