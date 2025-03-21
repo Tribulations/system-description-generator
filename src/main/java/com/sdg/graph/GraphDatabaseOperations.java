@@ -149,19 +149,14 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * Creates a node representing a Java class in the graph database.
      *
      * @param className the name of the class to create
+     * @throws IllegalStateException if no batch transaction is active
      */
-    public void createClassNode(String className) {
-        if (batchTransaction != null) { // TODO: extract batch logic and session logic into separate methods and use these in all create methods
+    public void createClassNode(String className) throws IllegalStateException {
+        if (batchTransaction != null) {
             LoggerUtil.debug(getClass(), "Creating class node in batch transaction: {}", className);
             batchTransaction.run(CypherConstants.CREATE_CLASS, parameters(CypherConstants.PROP_CLASS_NAME, className));
         } else {
-            try (Session session = driver.session()) {
-                session.executeWrite(tx -> {
-                    LoggerUtil.debug(getClass(), "Creating class node in single transaction: {}", className);
-                    tx.run(CypherConstants.CREATE_CLASS, parameters(CypherConstants.PROP_CLASS_NAME, className));
-                    return null;
-                });
-            }
+            throw new IllegalStateException("Cannot create class node outside of a batch transaction");
         }
     }
 
@@ -170,8 +165,9 @@ public class GraphDatabaseOperations implements AutoCloseable {
      *
      * @param className the name of the class containing the method
      * @param methodName the name of the method to create
+     * @throws IllegalStateException if no batch transaction is active
      */
-    public void createMethodNode(String className, String methodName) {
+    public void createMethodNode(String className, String methodName) throws IllegalStateException {
         if (batchTransaction != null) {
             LoggerUtil.debug(getClass(), "Creating method node in batch transaction: {}.{}", className, methodName);
             batchTransaction.run(CypherConstants.CREATE_METHOD,
@@ -180,17 +176,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
                     parameters(CypherConstants.PROP_CLASS_NAME, className,
                             CypherConstants.PROP_METHOD_NAME, methodName));
         } else {
-            try (Session session = driver.session()) {
-                session.executeWrite(tx -> {
-                    LoggerUtil.debug(getClass(), "Creating method node i single transaction: {}.{}", className, methodName);
-                    tx.run(CypherConstants.CREATE_METHOD,
-                            parameters(CypherConstants.PROP_METHOD_NAME, methodName));
-                    tx.run(CypherConstants.CONNECT_METHOD_TO_CLASS,
-                            parameters(CypherConstants.PROP_CLASS_NAME, className,
-                                    CypherConstants.PROP_METHOD_NAME, methodName));
-                    return null;
-                });
-            }
+            throw new IllegalStateException("Cannot create method node outside of a batch transaction");
         }
     }
 
@@ -199,8 +185,9 @@ public class GraphDatabaseOperations implements AutoCloseable {
      *
      * @param callerMethod the name of the method making the call
      * @param calledMethod the name of the method being called
+     * @throws IllegalStateException if no batch transaction is active
      */
-    public void createMethodCallNode(String callerMethod, String calledMethod) {
+    public void createMethodCallNode(String callerMethod, String calledMethod) throws IllegalStateException {
         if (batchTransaction != null) {
             LoggerUtil.debug(getClass(), "Creating method call in batch transaction: {} -> {}", callerMethod, calledMethod);
             batchTransaction.run(CypherConstants.CREATE_METHOD_CALL,
@@ -209,17 +196,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
                     parameters(CypherConstants.PROP_METHOD_NAME, callerMethod,
                             CypherConstants.PROP_CALLED_METHOD, calledMethod));
         } else {
-            try (Session session = driver.session()) {
-                session.executeWrite(tx -> {
-                    LoggerUtil.debug(getClass(), "Creating method call in single transaction: {} -> {}", callerMethod, calledMethod);
-                    tx.run(CypherConstants.CREATE_METHOD_CALL,
-                            parameters(CypherConstants.PROP_CALLED_METHOD, calledMethod));
-                    tx.run(CypherConstants.CONNECT_CALL_TO_METHOD,
-                            parameters(CypherConstants.PROP_METHOD_NAME, callerMethod,
-                                    CypherConstants.PROP_CALLED_METHOD, calledMethod));
-                    return null;
-                });
-            }
+            throw new IllegalStateException("Cannot create method call node outside of a batch transaction");
         }
     }
 
@@ -228,23 +205,16 @@ public class GraphDatabaseOperations implements AutoCloseable {
      *
      * @param childClass the name of the child class
      * @param parentClass the name of the parent class
+     * @throws IllegalStateException if no batch transaction is active
      */
-    public void createInheritanceRelationship(String childClass, String parentClass) {
+    public void createInheritanceRelationship(String childClass, String parentClass) throws IllegalStateException {
         if (batchTransaction != null) {
             LoggerUtil.debug(getClass(), "Creating inheritance relationship in batch transaction: {} extends {}", childClass, parentClass);
             batchTransaction.run(CypherConstants.CONNECT_CLASS_INHERITANCE,
                     parameters(CypherConstants.PROP_CLASS_NAME, childClass,
                             CypherConstants.PROP_PARENT_NAME, parentClass));
         } else {
-            try (Session session = driver.session()) {
-                session.executeWrite(tx -> {
-                    LoggerUtil.debug(getClass(), "Creating inheritance relationship in single transaction: {} extends {}", childClass, parentClass);
-                    tx.run(CypherConstants.CONNECT_CLASS_INHERITANCE,
-                            parameters(CypherConstants.PROP_CLASS_NAME, childClass,
-                                    CypherConstants.PROP_PARENT_NAME, parentClass));
-                    return null;
-                });
-            }
+            throw new IllegalStateException("Cannot create class node outside of a batch transaction");
         }
     }
 
@@ -253,6 +223,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      *
      * @param implementingClass the name of the class implementing the interface
      * @param interfaceName the name of the interface being implemented
+     * @throws IllegalStateException if no batch transaction is active
      */
     public void createInterfaceImplementation(String implementingClass, String interfaceName) {
         if (batchTransaction != null) {
@@ -263,17 +234,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
                     parameters(CypherConstants.PROP_CLASS_NAME, implementingClass,
                             CypherConstants.PROP_INTERFACE_NAME, interfaceName));
         } else {
-            try (Session session = driver.session()) {
-                session.executeWrite(tx -> {
-                    LoggerUtil.debug(getClass(), "Creating interface implementation in single transaction: {} implements {}", implementingClass, interfaceName);
-                    tx.run(CypherConstants.CREATE_INTERFACE,
-                            parameters(CypherConstants.PROP_INTERFACE_NAME, interfaceName));
-                    tx.run(CypherConstants.CONNECT_INTERFACE_IMPLEMENTATION,
-                            parameters(CypherConstants.PROP_CLASS_NAME, implementingClass,
-                                    CypherConstants.PROP_INTERFACE_NAME, interfaceName));
-                    return null;
-                });
-            }
+            throw new IllegalStateException("Cannot create interface implementation outside of a batch transaction");
         }
     }
 
@@ -282,6 +243,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      *
      * @param className the name of the class with the import
      * @param importName the name of the imported package or class
+     * @throws IllegalStateException if no batch transaction is active
      */
     public void createImportRelationship(String className, String importName) {
         if (batchTransaction != null) {
@@ -292,17 +254,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
                     parameters(CypherConstants.PROP_CLASS_NAME, className,
                             CypherConstants.PROP_IMPORT_NAME, importName));
         } else {
-            try (Session session = driver.session()) {
-                session.executeWrite(tx -> {
-                    LoggerUtil.debug(getClass(), "Creating import relationship in single transaction: {} imports {}", className, importName);
-                    tx.run(CypherConstants.CREATE_IMPORT,
-                            parameters(CypherConstants.PROP_IMPORT_NAME, importName));
-                    tx.run(CypherConstants.CONNECT_CLASS_IMPORT,
-                            parameters(CypherConstants.PROP_CLASS_NAME, className,
-                                    CypherConstants.PROP_IMPORT_NAME, importName));
-                    return null;
-                });
-            }
+            throw new IllegalStateException("Cannot create import relationship outside of a batch transaction");
         }
     }
 
@@ -313,6 +265,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @param fieldName the name of the field
      * @param fieldType the type of the field
      * @param accessModifier the access modifier of the field (public, private, etc.)
+     * @throws IllegalStateException if no batch transaction is active
      */
     public void createClassField(String className, String fieldName, String fieldType, String accessModifier) {
         if (batchTransaction != null) {
@@ -325,19 +278,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
                     parameters(CypherConstants.PROP_CLASS_NAME, className,
                             CypherConstants.PROP_FIELD_NAME, fieldName));
         } else {
-            try (Session session = driver.session()) {
-                session.executeWrite(tx -> {
-                    LoggerUtil.debug(getClass(), "Creating class field in single transaction: {}.{} ({} {})", className, fieldName, accessModifier, fieldType);
-                    tx.run(CypherConstants.CREATE_CLASS_FIELD,
-                            parameters(CypherConstants.PROP_FIELD_NAME, fieldName,
-                                    CypherConstants.PROP_FIELD_TYPE, fieldType,
-                                    CypherConstants.PROP_VISIBILITY, accessModifier));
-                    tx.run(CypherConstants.CONNECT_FIELD_TO_CLASS,
-                            parameters(CypherConstants.PROP_CLASS_NAME, className,
-                                    CypherConstants.PROP_FIELD_NAME, fieldName));
-                    return null;
-                });
-            }
+            throw new IllegalStateException("Cannot create class field outside of a batch transaction");
         }
     }
 
@@ -347,6 +288,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @param methodName the name of the method containing the control flow
      * @param controlFlowType the type of control flow (if, for, while, etc.)
      * @param condition the condition of the control flow statement
+     * @throws IllegalStateException if no batch transaction is active
      */
     public void createControlFlowNode(String methodName, String controlFlowType, String condition) {
         if (batchTransaction != null) {
@@ -358,18 +300,7 @@ public class GraphDatabaseOperations implements AutoCloseable {
                     parameters(CypherConstants.PROP_METHOD_NAME, methodName,
                             CypherConstants.PROP_CONDITION, condition));
         } else {
-            try (Session session = driver.session()) {
-                session.executeWrite(tx -> {
-                    LoggerUtil.debug(getClass(), "Creating control flow node in single transaction: {} in method {}", controlFlowType, methodName);
-                    tx.run(CypherConstants.CREATE_CONTROL_FLOW,
-                            parameters(CypherConstants.PROP_TYPE, controlFlowType,
-                                    CypherConstants.PROP_CONDITION, condition));
-                    tx.run(CypherConstants.CONNECT_CONTROL_TO_METHOD,
-                            parameters(CypherConstants.PROP_METHOD_NAME, methodName,
-                                    CypherConstants.PROP_CONDITION, condition));
-                    return null;
-                });
-            }
+            throw new IllegalStateException("Cannot create control flow node outside of a batch transaction");
         }
     }
 
