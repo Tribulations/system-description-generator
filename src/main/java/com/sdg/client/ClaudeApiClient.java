@@ -53,7 +53,7 @@ public class ClaudeApiClient {
     /**
      * Sends a synchronous request to the Claude API
      *
-     * @param prompt The user message to send to Claude
+     * @param prompt The prompt to send to Claude
      * @param maxTokens Maximum number of tokens in the response
      * @return The API response as a JSON String
      * @throws Exception If the request fails

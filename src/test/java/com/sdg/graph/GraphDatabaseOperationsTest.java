@@ -11,8 +11,13 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.neo4j.driver.Values.parameters;
 
+/**
+ * This class contains unit tests for the {@link GraphDatabaseOperations} class.
+ */
 class GraphDatabaseOperationsTest {
     private GraphDatabaseOperations dbOps;
     private static final String CHILD_CLASS = "ChildClass";
@@ -22,13 +27,51 @@ class GraphDatabaseOperationsTest {
     @BeforeEach
     void setUp() {
         dbOps = new GraphDatabaseOperations();
-        dbOps.deleteAllData(); // Start with a clean database
+        dbOps.deleteAllData(); // Start with a clean database for each test
+        dbOps.startBatchSession();
+        dbOps.startBatchTransaction();
     }
 
     @AfterEach
     void tearDown() {
-        dbOps.deleteAllData();
+        if (dbOps.isBatchTransactionActive()) {
+            dbOps.commitBatchTransaction();
+        }
+        if (dbOps.isBatchSessionActive()) {
+            dbOps.endBatchSession();
+        }
         dbOps.close();
+    }
+
+    @Test
+    void testBatchTransactionRequired() {
+        // First test that operations work with an active batch transaction
+        assertDoesNotThrow(() -> dbOps.createClassNode("TestClass"), 
+            "Should not throw exception when batch transaction is active");
+        
+        // Commit the current transaction
+        dbOps.commitBatchTransaction();
+        
+        // Now test that operations throw exceptions when no batch transaction is active
+        assertThrows(IllegalStateException.class, 
+            () -> dbOps.createClassNode("AnotherClass"),
+            "Should throw IllegalStateException when no batch transaction is active");
+    }
+    
+    @Test
+    void testBatchSessionRequired() {
+        // First test that operations work with an active batch session
+        assertDoesNotThrow(() -> dbOps.startBatchTransaction(), 
+            "Should not throw exception when batch session is active");
+        
+        // End the current session (and transaction)
+        dbOps.commitBatchTransaction();
+        dbOps.endBatchSession();
+        
+        // Now test that operations throw exceptions when no batch session is active
+        assertThrows(IllegalStateException.class, 
+            () -> dbOps.startBatchTransaction(),
+            "Should throw IllegalStateException when no batch session is active");
     }
 
     @Test
@@ -37,6 +80,9 @@ class GraphDatabaseOperationsTest {
         dbOps.createClassNode(CHILD_CLASS);
         dbOps.createClassNode(PARENT_CLASS);
 
+        // Commit the transaction to make changes visible to queries
+        dbOps.commitBatchTransaction();
+        
         // Verify nodes were created
         try (Session session = dbOps.getDriver().session()) {
             Result result = session.run(CypherConstants.FIND_ALL_CLASSES);
@@ -55,6 +101,9 @@ class GraphDatabaseOperationsTest {
         dbOps.createClassNode(PARENT_CLASS);
         dbOps.createInheritanceRelationship(CHILD_CLASS, PARENT_CLASS);
 
+        // Commit the transaction to make changes visible to queries
+        dbOps.commitBatchTransaction();
+        
         // Verify inheritance relationship
         try (Session session = dbOps.getDriver().session()) {
             Result result = session.run(CypherConstants.GET_CLASS_INHERITANCE,
@@ -70,6 +119,9 @@ class GraphDatabaseOperationsTest {
         dbOps.createClassNode(PARENT_CLASS);
         dbOps.createInterfaceImplementation(PARENT_CLASS, TEST_INTERFACE);
 
+        // Commit the transaction to make changes visible to queries
+        dbOps.commitBatchTransaction();
+        
         // Verify interface implementation
         try (Session session = dbOps.getDriver().session()) {
             Result interfaceResult = session.run(CypherConstants.GET_CLASS_INTERFACES,
@@ -86,6 +138,9 @@ class GraphDatabaseOperationsTest {
         dbOps.createMethodNode(PARENT_CLASS, "testMethod");
         dbOps.createMethodNode(PARENT_CLASS, "anotherMethod");
 
+        // Commit the transaction to make changes visible to queries
+        dbOps.commitBatchTransaction();
+        
         // Verify method nodes and their relationships to the class
         try (Session session = dbOps.getDriver().session()) {
             Result result = session.run(CypherConstants.GET_CLASS_METHODS,
@@ -104,6 +159,9 @@ class GraphDatabaseOperationsTest {
         dbOps.createClassNode(PARENT_CLASS);
         dbOps.createClassField(PARENT_CLASS, "testField", "String", "private");
 
+        // Commit the transaction to make changes visible to queries
+        dbOps.commitBatchTransaction();
+        
         // Verify field node and its relationship to the class
         try (Session session = dbOps.getDriver().session()) {
             Result result = session.run(CypherConstants.GET_CLASS_FIELDS,
@@ -123,6 +181,9 @@ class GraphDatabaseOperationsTest {
         dbOps.createClassNode(PARENT_CLASS);
         dbOps.createImportRelationship(PARENT_CLASS, importName);
 
+        // Commit the transaction to make changes visible to queries
+        dbOps.commitBatchTransaction();
+        
         // Verify import relationship
         try (Session session = dbOps.getDriver().session()) {
             Result result = session.run(CypherConstants.GET_CLASS_IMPORTS,
@@ -144,6 +205,9 @@ class GraphDatabaseOperationsTest {
         dbOps.createClassNode(PARENT_CLASS);
         imports.forEach(importName -> dbOps.createImportRelationship(PARENT_CLASS, importName));
 
+        // Commit the transaction to make changes visible to queries
+        dbOps.commitBatchTransaction();
+        
         // Verify all imports
         try (Session session = dbOps.getDriver().session()) {
             Result result = session.run(CypherConstants.GET_CLASS_IMPORTS,
@@ -171,6 +235,9 @@ class GraphDatabaseOperationsTest {
         dbOps.createClassField(PARENT_CLASS, "parentField", "String", "protected");
         dbOps.createClassField(CHILD_CLASS, "childField", "int", "private");
 
+        // Commit the transaction to make changes visible to queries
+        dbOps.commitBatchTransaction();
+        
         // Verify the complete structure
         try (Session session = dbOps.getDriver().session()) {
             // Verify class inheritance
