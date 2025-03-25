@@ -33,12 +33,21 @@ public class LLMPrompts {
 
 
     public static final String promptTemplate3 = """
-                Given the following knowledge graph in JSON format representing a software system at a high level:
+                Given the following knowledge graph in JSON format representing Java software system at a high level::
 
                 %s
 
-                Provide a short and coherent high-level description of this systems behavior.
-                """;
+                **Task:**
+                Provide a **concise and structured high-level summary** of the system’s behavior and structure.
+                Your response must include:
+                1. **System Purpose:** Clearly state the system's primary function.
+                2. **Key Components & Responsibilities:** Briefly describe the major components and their roles.
+                3. **Core Technologies & Dependencies:** Explicitly confirm the technologies used and dependencies.
+                **Response Guidelines:**
+                - Keep the summary **brief yet informative**.
+                - Use **direct and factual statements** instead of speculation.
+                - Ensure the response is structured and easy to understand.
+                - **Avoid** using uncertain language like "might", "could", "may", etc.""";
 
     /**
      * Creates a prompt based on the provided prompt template and knowledge graph JSON.

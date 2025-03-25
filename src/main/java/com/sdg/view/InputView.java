@@ -24,6 +24,7 @@ public class InputView extends JFrame {
     public final JTextField inputField;
     private final JButton browseButton;
     private final JButton processButton;
+    private final JButton description;
     private final JTextArea outputArea;
 
     /**
@@ -43,7 +44,8 @@ public class InputView extends JFrame {
 
         inputField = new JTextField(25); // Text field for input path
         browseButton = new JButton("Browse");
-        processButton = new JButton("Process");
+        processButton = new JButton("Insert to Graph");
+        description = new JButton("Generate Description");
 
         // Configure input field to expand and fill available space
         gbc.weightx = 1.0; // Allow inputField to expand
