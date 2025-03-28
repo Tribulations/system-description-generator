@@ -7,6 +7,12 @@ import org.slf4j.LoggerFactory;
  * Utility class for logging that wraps SLF4J functionality.
  * Provides static methods for logging at different levels without requiring
  * client classes to directly import SLF4J classes.
+ * Logging levels and other settings can be set in src/main/java/resources/logback.xml.
+ *
+ * @see org.slf4j.Logger
+ * @see org.slf4j.LoggerFactory
+ * @author Joakim Colloz
+ * @version 1.0
  */
 public class LoggerUtil {
     private static Logger getLoggerInstance(Class<?> clazz) {
