@@ -138,12 +138,30 @@ public class ASTAnalyzer {
             return;
         }
 
+        LoggerUtil.debug(getClass(), "Analyzing methods for class: {} (only analyze public methods: {})",
+                className, config.isOnlyAnalyzePublicMethods());
+
         classDecl.getMethods().forEach(method -> {
             String methodName = method.getNameAsString();
-            LoggerUtil.debug(getClass(), "Analyzing method: {}.{}", className, methodName);
-            dbOps.createMethodNode(className, methodName);
-            analyzeMethodCalls(method, methodName);
-            analyzeControlFlow(method, methodName);
+            boolean isPublic = method.isPublic();
+
+            // Skip non-public methods if specified by configuration
+            if (!config.isOnlyAnalyzePublicMethods() || isPublic) {
+                String visibility = isPublic ? "public" : 
+                                   method.isPrivate() ? "private" : 
+                                   method.isProtected() ? "protected" : "package-private";
+                
+                LoggerUtil.debug(getClass(), "Analyzing method: {}.{} with visibility {}",
+                        className, methodName, visibility);
+
+                dbOps.createMethodNode(className, methodName, visibility);
+
+                analyzeMethodCalls(method, methodName);
+                analyzeControlFlow(method, methodName);
+            } else {
+                LoggerUtil.debug(getClass(), "Skipping non-public method due to onlyAnalyzePublicMethods=true: {}.{}", 
+                        className, methodName);
+            }
         });
     }
 
