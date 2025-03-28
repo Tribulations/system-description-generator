@@ -6,6 +6,7 @@ import java.util.List;
 // TODO: rename some of the member fields to better align with relation names
 public class ClassNode {
     private String name;
+    private String packageName;
     private List<String> extendedClasses = new ArrayList<>();
     private List<String> implementedInterfaces = new ArrayList<>();
     private List<MethodNode> methods = new ArrayList<>(); // TODO : rename e.g., hasMethods
@@ -24,6 +25,14 @@ public class ClassNode {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPackageName() {
+        return packageName;
+    }
+
+    public void setPackageName(String packageName) {
+        this.packageName = packageName;
     }
 
     public List<String> getExtendedClasses() {

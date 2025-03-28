@@ -184,6 +184,21 @@ public class GraphDatabaseOperations implements AutoCloseable {
     }
 
     /**
+     * Creates a node representing a Java class in the graph database with package information.
+     *
+     * @param className the name of the class to create
+     * @param packageName the package name of the class
+     * @throws IllegalStateException if no batch transaction is active
+     */
+    public void createClassNode(String className, String packageName) throws IllegalStateException {
+        verifyBatchTransactionActive("create class node with package");
+        LoggerUtil.debug(getClass(), "Creating class node in batch transaction: {} in package {}", className, packageName);
+        executeInBatchTransaction(CypherConstants.CREATE_CLASS_WITH_PACKAGE, 
+                parameters(CypherConstants.PROP_CLASS_NAME, className, 
+                          CypherConstants.PROP_PACKAGE_NAME, packageName));
+    }
+
+    /**
      * Creates a node representing a method and connects it to its containing class.
      *
      * @param className the name of the class containing the method

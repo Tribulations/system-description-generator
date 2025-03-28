@@ -29,6 +29,11 @@ public final class CypherConstants {
     public static final String CREATE_CLASS = 
         "MERGE (c:Class {className: $className})";
 
+    /** Query to create a new Class node with package information. Parameters: className, packageName */
+    public static final String CREATE_CLASS_WITH_PACKAGE = 
+        "MERGE (c:Class {className: $className}) " +
+        "SET c.packageName = $packageName";
+
     /** Query to create a new Method node. Parameters: name */
     public static final String CREATE_METHOD = 
         "MERGE (m:Method {methodName: $methodName})";
@@ -95,7 +100,7 @@ public final class CypherConstants {
         "WITH c, COUNT(r) AS connections " +
         "ORDER BY connections DESC " +
         "LIMIT $limit " +
-        "RETURN c.className as className";
+        "RETURN c.className as className, c.packageName as packageName";
 
     /** Query to get control flow of a method. Parameters: methodName */
     public static final String GET_CONTROL_FLOW =
@@ -129,7 +134,12 @@ public final class CypherConstants {
 
     /** Query to find all classes. Parameters: none */
     public static final String FIND_ALL_CLASSES = 
-        "MATCH (c:Class) RETURN c.className as className";
+        "MATCH (c:Class) RETURN c.className as className, c.packageName as packageName";
+
+    /** Query to get package name of a class. Parameters: className */
+    public static final String GET_CLASS_PACKAGE =
+        "MATCH (c:Class {className: $className}) " +
+        "RETURN c.packageName as packageName";
 
     /** Query to create Import node. Parameters: importName */
     public static final String CREATE_IMPORT = 

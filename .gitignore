@@ -70,6 +70,7 @@ Thumbs.db
 # Project specific
 src/main/java/com/sdg/graph/Neo4jConfig.java
 src/main/java/com/sdg/client/ClaudeApiConfig.java
+src/main/java/com/sdg/client/GeminiApiConfig.java
 
 *.log
 logs/
