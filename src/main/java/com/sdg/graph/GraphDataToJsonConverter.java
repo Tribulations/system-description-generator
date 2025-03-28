@@ -68,7 +68,8 @@ public class GraphDataToJsonConverter {
             while (result.hasNext()) {
                 Record record = result.next();
                 String className = record.get(CypherConstants.PROP_CLASS_NAME).asString();
-                ClassNode classNode = buildClassNode(className, session);
+                String packageName = record.get(CypherConstants.PROP_PACKAGE_NAME).asString("<None>");
+                ClassNode classNode = buildClassNode(className, packageName, session);
                 system.addClass(classNode);
             }
         }
@@ -85,7 +86,8 @@ public class GraphDataToJsonConverter {
             while (result.hasNext()) {
                 Record record = result.next();
                 String className = record.get(CypherConstants.PROP_CLASS_NAME).asString();
-                ClassNode classNode = buildClassNode(className, session);
+                String packageName = record.get(CypherConstants.PROP_PACKAGE_NAME).asString("<None>");
+                ClassNode classNode = buildClassNode(className, packageName, session);
                 system.addClass(classNode);
             }
         }
@@ -97,12 +99,14 @@ public class GraphDataToJsonConverter {
      * Builds a ClassNode with all its methods, member fields, and relationships
      *
      * @param className the name of the class to build
+     * @param packageName the package name of the class
      * @param session the Neo4j session
      * @return a populated ClassNode
      */
-    private ClassNode buildClassNode(String className, Session session) {
+    private ClassNode buildClassNode(String className, String packageName, Session session) {
         ClassNode classNode = new ClassNode();
         classNode.setName(className);
+        classNode.setPackageName(packageName);
 
         getInheritance(className, session, classNode);
         getImplementedInterfaces(className, session, classNode);
