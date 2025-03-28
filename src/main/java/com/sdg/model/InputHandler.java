@@ -110,7 +110,7 @@ public class InputHandler {
 
         try (Stream<Path> paths = Files.walk(rootDir).parallel()) {
             paths.filter(Files::isRegularFile)  // Select only files, not directories
-                    .filter(file -> file.toString().endsWith(".java")) // Only Java files
+                    .filter(this::isRelevantJavaFile) 
                     .forEach(file -> {
                         logger.debug("Identified Java file: {}", file);
                         javaFiles.add(file);
@@ -189,6 +189,15 @@ public class InputHandler {
      */
     public record ProcessingResult(Path file, int contentLength,
                                    String processedContent) {
+    }
+
+    private boolean isRelevantJavaFile(Path file) {
+        String filePath = file.toString().toLowerCase();
+        return filePath.endsWith(".java") &&
+                !filePath.contains("test") &&
+                !filePath.contains("config") &&
+                !filePath.contains("util") &&
+                !filePath.contains("utils");
     }
 
 //    public static void main(String[] args) {
