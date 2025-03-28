@@ -4,6 +4,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.nodeTypes.NodeWithName;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.sdg.logging.LoggerUtil;
@@ -75,7 +76,13 @@ public class ASTAnalyzer {
 
             LoggerUtil.debug(getClass(), "Analyzing class: {}", className);
 
-            dbOps.createClassNode(className);
+            // Extract package name
+            String packageName = cu.getPackageDeclaration()
+                    .map(NodeWithName::getNameAsString)
+                    .orElse("<None>");
+
+            LoggerUtil.debug(getClass(), "Found package for class {}: {}", className, packageName);
+            dbOps.createClassNode(className, packageName);
 
             analyzeInheritance(classDecl, className);
             analyzeInterfaceImplementations(classDecl, className);
