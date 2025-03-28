@@ -29,6 +29,11 @@ public final class CypherConstants {
     public static final String CREATE_CLASS = 
         "MERGE (c:Class {className: $className})";
 
+    /** Query to create a new Class node with package information. Parameters: className, packageName */
+    public static final String CREATE_CLASS_WITH_PACKAGE = 
+        "MERGE (c:Class {className: $className}) " +
+        "SET c.packageName = $packageName";
+
     /** Query to create a new Method node. Parameters: name */
     public static final String CREATE_METHOD = 
         "MERGE (m:Method {methodName: $methodName})";
