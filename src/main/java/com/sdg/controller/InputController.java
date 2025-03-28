@@ -40,6 +40,7 @@ public class InputController {
         // Attach event listeners to the UI buttons
         view.addBrowseListener(e -> browseFile());
         view.addProcessListener(e -> processInput());
+        view.addDecListener(e -> generateDescription());
     }
 
     /**
@@ -89,8 +90,6 @@ public class InputController {
      */
     private void handleProcessingResult(ProcessingResult result) {
         updateOutput("\nProcessing file: " + result.file());
-        updateOutput("\nLength of file content: " + result.contentLength());
-        updateOutput("\nProcessed content:\n" + result.processedContent());
     }
 
     /**
@@ -100,6 +99,30 @@ public class InputController {
      */
     private void handleProcessingError(Throwable throwable) {
         String errorMessage = "\nError: " + throwable.getMessage();
+        logger.error(errorMessage, throwable);
+        updateOutput(errorMessage);
+    }
+
+    /**
+     * Triggers LLM response generation and updates the UI with the generated response.
+     */
+    private void generateDescription() {
+        disposables.add(
+                graphService.generateLLMResponseAsync()
+                        .observeOn(swingScheduler)
+                        .subscribe(
+                                response -> updateOutput("\nLLM Response: " + response),
+                                this::handleLLMProcessingError
+                        )
+        );
+    }
+    /**
+     * Handles errors that occur during LLM response generation.
+     * Logs the error and displays a message in the UI.
+     * @param throwable The exception thrown during LLM response generation.
+     */
+    private void handleLLMProcessingError(Throwable throwable) {
+        String errorMessage = "\nLLM Response Error: " + throwable.getMessage();
         logger.error(errorMessage, throwable);
         updateOutput(errorMessage);
     }
