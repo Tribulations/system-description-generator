@@ -16,6 +16,7 @@ public class ASTAnalyzerConfig {
     private boolean analyzeInterfaceImplementations = true;
     private boolean analyzeControlFlow = true;
     private boolean onlyAnalyzePublicMethods = false;
+    private boolean omitPrivateMethodCalls = false;
 
     public ASTAnalyzerConfig analyzeMethods(boolean analyzeMethods) {
         this.analyzeMethods = analyzeMethods;
@@ -57,6 +58,11 @@ public class ASTAnalyzerConfig {
         return this;
     }
 
+    public ASTAnalyzerConfig omitPrivateMethodCalls(boolean omitPrivateMethodCalls) {
+        this.omitPrivateMethodCalls = omitPrivateMethodCalls;
+        return this;
+    }
+
     // Setters
 
     public void setAnalyzeMethods(boolean analyzeMethods) {
@@ -89,6 +95,10 @@ public class ASTAnalyzerConfig {
 
     public void setOnlyAnalyzePublicMethods(boolean onlyAnalyzePublicMethods) {
         this.onlyAnalyzePublicMethods = onlyAnalyzePublicMethods;
+    }
+
+    public void setOmitPrivateMethodCalls(boolean omitPrivateMethodCalls) {
+        this.omitPrivateMethodCalls = omitPrivateMethodCalls;
     }
 
     // Getters
@@ -125,6 +135,10 @@ public class ASTAnalyzerConfig {
         return onlyAnalyzePublicMethods;
     }
 
+    public boolean isOmitPrivateMethodCalls() {
+        return omitPrivateMethodCalls;
+    }
+
     @Override
     public String toString() {
         return "ASTAnalyzerConfig{" +
@@ -136,6 +150,7 @@ public class ASTAnalyzerConfig {
                 ", analyzeInterfaceImplementations=" + analyzeInterfaceImplementations +
                 ", analyzeControlFlow=" + analyzeControlFlow +
                 ", onlyAnalyzePublicMethods=" + onlyAnalyzePublicMethods +
+                ", omitPrivateMethodCalls=" + omitPrivateMethodCalls +
                 '}';
     }
 }

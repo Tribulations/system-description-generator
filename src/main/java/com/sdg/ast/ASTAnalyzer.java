@@ -190,10 +190,34 @@ public class ASTAnalyzer {
             return;
         }
 
+        LoggerUtil.debug(getClass(), "Analyzing method calls for method: {} (omit private method calls: {})",
+                methodName, config.isOmitPrivateMethodCalls());
+
+        // Get the parent class declaration to check for private methods if needed
+        ClassOrInterfaceDeclaration parentClass = method.findAncestor(ClassOrInterfaceDeclaration.class)
+                .orElse(null);
+        
         method.findAll(MethodCallExpr.class).forEach(methodCall -> {
             String methodCallName = methodCall.getNameAsString();
-            LoggerUtil.debug(getClass(), "Found method call: {} -> {}", methodName, methodCallName);
-            dbOps.createMethodCallNode(methodName, methodCallName);
+            boolean shouldAnalyze = true;
+            
+            // Omit private method calls within the same class if specified by configuration
+            if (config.isOmitPrivateMethodCalls() && parentClass != null) {
+                // Check if the called method exists in the same class and is private
+                boolean isPrivateMethodInSameClass = parentClass.getMethods().stream()
+                    .anyMatch(m -> m.getNameAsString().equals(methodCallName) && m.isPrivate());
+                
+                if (isPrivateMethodInSameClass) {
+                    LoggerUtil.debug(getClass(), "Skipping private method call within same class: {} -> {}", 
+                            methodName, methodCallName);
+                    shouldAnalyze = false;
+                }
+            }
+            
+            if (shouldAnalyze) {
+                LoggerUtil.debug(getClass(), "Found method call: {} -> {}", methodName, methodCallName);
+                dbOps.createMethodCallNode(methodName, methodCallName);
+            }
         });
     }
 
