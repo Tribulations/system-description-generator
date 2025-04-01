@@ -164,7 +164,8 @@ public class InputController {
             ASTAnalyzerConfig config = new ASTAnalyzerConfig()
                     .analyzeClassFields(false)
                     .analyzeControlFlow(false)
-                    .onlyAnalyzePublicMethods(true);
+                    .onlyAnalyzePublicMethods(true)
+                    .omitPrivateMethodCalls(true);
 
             KnowledgeGraphService graphService = new KnowledgeGraphService(config);  // Initialize KnowledgeGraphService
             InputController controller = new InputController(view, graphService);
