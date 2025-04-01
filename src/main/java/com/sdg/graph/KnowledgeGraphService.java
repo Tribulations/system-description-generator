@@ -4,6 +4,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.sdg.ast.ASTAnalyzer;
 import com.sdg.ast.ASTAnalyzerConfig;
 import com.sdg.ast.JavaFileParser;
+import com.sdg.client.GeminiApiClient;
 import com.sdg.client.LLMService;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.model.InputHandler;
@@ -64,7 +65,7 @@ public class KnowledgeGraphService implements AutoCloseable {
         this.analyzer = new ASTAnalyzer(dbOps, config);
         this.visualizer = new GraphVisualizer();
         this.inputHandler = new InputHandler();  // Initialize InputHandler
-        this.llmService = new LLMService();
+        this.llmService = new LLMService(new GeminiApiClient());
     }
 
     /**
