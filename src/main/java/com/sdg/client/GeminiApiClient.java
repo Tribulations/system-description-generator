@@ -1,14 +1,15 @@
 package com.sdg.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-
-import org.json.JSONObject;
-import org.json.JSONArray;
 
 /**
  * This class is a client for interacting with the Gemini API to retrieve answers from LLM.
@@ -17,28 +18,27 @@ import org.json.JSONArray;
  * @see <a href="https://ai.google.dev/">Gemini API Documentation</a>
  * @version 1.1
  */
-
-public class GeminiApiClient {
-    private static final String API_URL = GeminiApiConfig.API_URL;
-    private static final String API_KEY = GeminiApiConfig.API_KEY;
-
-    private final HttpClient httpClient;
-
+public class GeminiApiClient extends BaseClient {
+    public GeminiApiClient(final String apiUrl, final String apiKey) {
+        super(apiUrl, apiKey);
+    }
+    
     public GeminiApiClient() {
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
-                .build();
+        this(GeminiApiConfig.API_URL, GeminiApiConfig.API_KEY);
     }
 
     /**
      * Sends a synchronous request to the Gemini API.
      *
      * @param prompt The user message to send to Gemini.
+     * @param temperature The temperature parameter for controlling randomness.
+     * @param maxTokens Maximum number of tokens in the response.
      * @return The API response as a JSON String.
      * @throws Exception If the request fails.
      */
-    public String sendRequest(String prompt) throws Exception {
-        String requestBody = buildRequestBody(prompt);
+    @Override
+    public String sendRequest(final String prompt, final float temperature, final int maxTokens) throws Exception {
+        String requestBody = buildRequestBody(prompt, temperature, maxTokens);
         HttpRequest request = buildHttpRequest(requestBody);
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -55,10 +55,13 @@ public class GeminiApiClient {
      * Sends an asynchronous request to the Gemini API.
      *
      * @param prompt The user message to send to Gemini.
+     * @param temperature The temperature parameter for controlling randomness.
+     * @param maxTokens Maximum number of tokens in the response.
      * @return A CompletableFuture containing the API response.
      */
-    public CompletableFuture<String> sendRequestAsync(String prompt) {
-        String requestBody = buildRequestBody(prompt);
+    @Override
+    public CompletableFuture<String> sendRequestAsync(final String prompt, final float temperature, final int maxTokens) {
+        String requestBody = buildRequestBody(prompt, temperature, maxTokens);
         HttpRequest request = buildHttpRequest(requestBody);
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -76,9 +79,12 @@ public class GeminiApiClient {
      * Builds the JSON request body according to the Gemini API's expected format.
      *
      * @param prompt The user message to send.
+     * @param temperature The temperature parameter for controlling randomness.
+     * @param maxTokens Maximum number of tokens in the response.
      * @return A JSON string representing the request body.
      */
-    private String buildRequestBody(String prompt) {
+    @Override
+    protected String buildRequestBody(final String prompt, final float temperature, final int maxTokens) {
         JSONObject requestBody = new JSONObject();
         JSONArray contentsArray = new JSONArray();
         JSONObject contentObject = new JSONObject();
@@ -91,6 +97,12 @@ public class GeminiApiClient {
         contentsArray.put(contentObject);
         requestBody.put("contents", contentsArray);
 
+        JSONObject generationConfig = new JSONObject();
+        generationConfig.put("temperature", temperature);
+        generationConfig.put("maxOutputTokens", maxTokens);
+
+        requestBody.put("generationConfig", generationConfig);
+
         return requestBody.toString();
     }
 
@@ -100,11 +112,40 @@ public class GeminiApiClient {
      * @param requestBody The JSON request body.
      * @return The constructed HttpRequest object.
      */
-    private static HttpRequest buildHttpRequest(String requestBody) {
+    @Override
+    protected HttpRequest buildHttpRequest(String requestBody) {
         return HttpRequest.newBuilder()
-                .uri(URI.create(API_URL + "?key=" + API_KEY))
+                .uri(URI.create(apiUrl + "?key=" + apiKey))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
+    }
+
+    /**
+     * Extracts the generated text from the Gemini API response.
+     *
+     * @param response the response from the Gemini API
+     * @return the extracted answer
+     */
+    @Override
+    protected String getAnswer(String response) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode candidates = root.path("candidates");
+
+            if (candidates.isArray() && !candidates.isEmpty()) {
+                JsonNode content = candidates.get(0).path("content");
+                JsonNode parts = content.path("parts");
+
+                if (parts.isArray() && !parts.isEmpty()) {
+                    return parts.get(0).path("text").asText();
+                }
+            }
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse response: " + e.getMessage(), e);
+        }
+
+        throw new RuntimeException("Unexpected API response format: " + response);
     }
 }

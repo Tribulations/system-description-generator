@@ -1,10 +1,12 @@
 package com.sdg.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -36,30 +38,30 @@ import java.util.concurrent.CompletableFuture;
  * @version 1.1
  * @author Joakim Colloz
  */
-public class ClaudeApiClient {
-    private static final String API_URL = ClaudeApiConfig.API_URL;
-    private static final String API_KEY = ClaudeApiConfig.API_KEY;
+public class ClaudeApiClient extends BaseClient {
     private static final String API_VERSION = ClaudeApiConfig.API_VERSION;
     private static final String MODEL = ClaudeApiConfig.MODEL;
 
-    private final HttpClient httpClient;
+    public ClaudeApiClient(final String apiUrl, final String apiKey) {
+        super(apiUrl, apiKey);
+    }
 
     public ClaudeApiClient() {
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
-                .build();
+        this(ClaudeApiConfig.API_URL, ClaudeApiConfig.API_KEY);
     }
 
     /**
      * Sends a synchronous request to the Claude API
      *
      * @param prompt The prompt to send to Claude
+     * @param temperature The temperature parameter for controlling randomness
      * @param maxTokens Maximum number of tokens in the response
      * @return The API response as a JSON String
      * @throws Exception If the request fails
      */
-    public String sendRequest(String prompt, int maxTokens) throws Exception {
-        String requestBody = buildRequestBody(prompt, maxTokens);
+    @Override
+    public String sendRequest(String prompt, float temperature, int maxTokens) throws Exception {
+        String requestBody = buildRequestBody(prompt, temperature, maxTokens);
         HttpRequest request = buildHttpRequest(requestBody);
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -79,8 +81,8 @@ public class ClaudeApiClient {
      * @param maxTokens Maximum number of tokens in the response
      * @return A CompletableFuture containing the API response
      */
-    public CompletableFuture<String> sendRequestAsync(String prompt, int maxTokens) {
-        String requestBody = buildRequestBody(prompt, maxTokens);
+    public CompletableFuture<String> sendRequestAsync(String prompt, float temperature, int maxTokens) {
+        String requestBody = buildRequestBody(prompt, temperature, maxTokens);
         HttpRequest request = buildHttpRequest(requestBody);
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -94,22 +96,25 @@ public class ClaudeApiClient {
                 });
     }
 
-    private String buildRequestBody(String prompt, int maxTokens) {
+    @Override
+    protected String buildRequestBody(final String prompt, final float temperature, final int maxTokens) {
         return String.format("""
             {
                 "model": "%s",
+                "temperature": %f,
                 "max_tokens": %d,
                 "messages": [
                     {"role": "user", "content": "%s"}
                 ]
             }
-            """, MODEL, maxTokens, escapeJsonString(prompt));
+            """, MODEL, temperature, maxTokens, escapeJsonString(prompt));
     }
 
-    private static HttpRequest buildHttpRequest(String requestBody) {
+    @Override
+    protected HttpRequest buildHttpRequest(String requestBody) {
         return HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
-                .header("x-api-key", API_KEY)
+                .uri(URI.create(apiUrl))
+                .header("x-api-key", apiKey)
                 .header("anthropic-version", API_VERSION)
                 .header("content-type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -127,5 +132,23 @@ public class ClaudeApiClient {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
+    }
+
+    /**
+     * Helper method to extract the answer from a JSON response from the Claude API.
+     *
+     * @param response the response from the Claude API
+     * @return the answer
+     */
+    @Override
+    protected String getAnswer(String response) {
+        JsonNode root;
+        try {
+            root = new ObjectMapper().readTree(response);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+
+        return root.get("content").get(0).get("text").asText();
     }
 }
