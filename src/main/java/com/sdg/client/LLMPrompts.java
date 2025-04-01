@@ -28,12 +28,12 @@ public class LLMPrompts {
 
                 %s
 
-                Provide a short high-level description of this systems behavior.
+                Provide a short high-level description of this systems structure and behavior.
                 """;
 
 
     public static final String promptTemplate3 = """
-                Given the following knowledge graph in JSON format representing Java software system at a high level::
+                Given the following knowledge graph in JSON format representing Java software system at a high level:
 
                 %s
 
@@ -47,7 +47,8 @@ public class LLMPrompts {
                 - Keep the summary **brief yet informative**.
                 - Use **direct and factual statements** instead of speculation.
                 - Ensure the response is structured and easy to understand.
-                - **Avoid** using uncertain language like "might", "could", "may", etc.""";
+                - **Avoid** using uncertain language like "might", "could", "may", etc.
+                - Do not return your response as JSON.""";
 
     /**
      * Creates a prompt based on the provided prompt template and knowledge graph JSON.
