@@ -72,6 +72,9 @@ public class InputController {
             return;
         }
 
+        view.getProcessButton().setEnabled(false);
+        view.getDescButton().setEnabled(true);
+
         // Subscribe to the RxJava observable processing files asynchronously
         disposables.add(
                 graphService.processKnowledgeGraph(inputPath)
@@ -107,6 +110,7 @@ public class InputController {
      * Triggers LLM response generation and updates the UI with the generated response.
      */
     private void generateDescription() {
+        view.getProcessButton().setEnabled(true);
         disposables.add(
                 graphService.generateLLMResponseAsync()
                         .observeOn(swingScheduler)
@@ -144,15 +148,6 @@ public class InputController {
     }
 
     /**
-     * Main method to start the application.
-     * Initializes the UI and model, and ensures resources are cleaned up on shutdown.
-     * @param args Command-line arguments (not used).
-     */
-//    public static void main(String[] args) {
-//        start();
-//    }
-
-    /**
      * Method to start the application.
      * Initializes the UI and model, and ensures resources are cleaned up on shutdown.
      */
@@ -160,12 +155,15 @@ public class InputController {
         SwingUtilities.invokeLater(() -> {
             InputView view = new InputView();
 
-            // Configure ASTAnalyzer to turn off analysis of specific parts of the AST
+
+
+
+            // Configure ASTAnalyzer to turn off analysis of methods, method calls and class fields
             ASTAnalyzerConfig config = new ASTAnalyzerConfig()
                     .analyzeClassFields(false)
                     .analyzeControlFlow(false)
-                    .onlyAnalyzePublicMethods(true)
-                    .omitPrivateMethodCalls(true);
+                    .analyzeMethods(false)
+                    .analyzeMethodCalls(false);
 
             KnowledgeGraphService graphService = new KnowledgeGraphService(config);  // Initialize KnowledgeGraphService
             InputController controller = new InputController(view, graphService);
