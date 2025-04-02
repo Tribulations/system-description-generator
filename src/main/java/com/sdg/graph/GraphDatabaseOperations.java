@@ -199,19 +199,22 @@ public class GraphDatabaseOperations implements AutoCloseable {
     }
 
     /**
-     * Creates a node representing a method and connects it to its containing class.
+     * Creates a node representing a method with specified visibility/access modifier and connects it to its containing class.
      *
      * @param className the name of the class containing the method
      * @param methodName the name of the method to create
+     * @param visibility the access modifier of the method (public, private, protected, package-private)
      * @throws IllegalStateException if no batch transaction is active
      */
-    public void createMethodNode(String className, String methodName) throws IllegalStateException {
+    public void createMethodNode(String className, String methodName, String visibility) throws IllegalStateException {
         verifyBatchTransactionActive("create method node");
-        LoggerUtil.debug(getClass(), "Creating method node in batch transaction: {}.{}", className, methodName);
+        LoggerUtil.debug(getClass(), "Creating method node in batch transaction: {}.{} with visibility {}", 
+                className, methodName, visibility);
         
-        // Create method node
+        // Create method node with visibility
         executeInBatchTransaction(CypherConstants.CREATE_METHOD,
-                parameters(CypherConstants.PROP_METHOD_NAME, methodName));
+                parameters(CypherConstants.PROP_METHOD_NAME, methodName,
+                          CypherConstants.PROP_METHOD_VISIBILITY, visibility));
         
         // Connect method to class
         executeInBatchTransaction(CypherConstants.CONNECT_METHOD_TO_CLASS,

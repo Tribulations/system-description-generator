@@ -160,12 +160,12 @@ public class InputController {
         SwingUtilities.invokeLater(() -> {
             InputView view = new InputView();
 
-            // Configure ASTAnalyzer to turn off analysis of methods, method calls and class fields
+            // Configure ASTAnalyzer to turn off analysis of specific parts of the AST
             ASTAnalyzerConfig config = new ASTAnalyzerConfig()
                     .analyzeClassFields(false)
                     .analyzeControlFlow(false)
-                    .analyzeMethods(false)
-                    .analyzeMethodCalls(false);
+                    .onlyAnalyzePublicMethods(true)
+                    .omitPrivateMethodCalls(true);
 
             KnowledgeGraphService graphService = new KnowledgeGraphService(config);  // Initialize KnowledgeGraphService
             InputController controller = new InputController(view, graphService);

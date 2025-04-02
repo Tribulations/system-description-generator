@@ -135,8 +135,8 @@ class GraphDatabaseOperationsTest {
     void testCreateMethodNodes() {
         // Create class and method nodes
         dbOps.createClassNode(PARENT_CLASS);
-        dbOps.createMethodNode(PARENT_CLASS, "testMethod");
-        dbOps.createMethodNode(PARENT_CLASS, "anotherMethod");
+        dbOps.createMethodNode(PARENT_CLASS, "testMethod", "public");
+        dbOps.createMethodNode(PARENT_CLASS, "anotherMethod", "private");
 
         // Commit the transaction to make changes visible to queries
         dbOps.commitBatchTransaction();
@@ -145,11 +145,32 @@ class GraphDatabaseOperationsTest {
         try (Session session = dbOps.getDriver().session()) {
             Result result = session.run(CypherConstants.GET_CLASS_METHODS,
                 parameters(CypherConstants.PROP_CLASS_NAME, PARENT_CLASS));
-            List<String> methodNames = result.list(record -> record.get(CypherConstants.PROP_METHOD_NAME).asString());
-            
+
+            // Extract method names and access modifiers from the records
+            List<Record> records = result.list();
+            List<String> methodNames = records.stream()
+                .map(record -> record.get(CypherConstants.PROP_METHOD_NAME).asString())
+                .toList();
+
+            List<String> methodAccessModifiers = records.stream()
+                .map(record -> record.get(CypherConstants.PROP_METHOD_VISIBILITY).asString())
+                .toList();
+
+            // Verify method nodes
             assertEquals(2, methodNames.size(), "Should have exactly two methods");
+            assertEquals(2, methodAccessModifiers.size(),
+                    "Both methods should have an access modifier");
             assertTrue(methodNames.contains("testMethod"), "testMethod should exist");
             assertTrue(methodNames.contains("anotherMethod"), "anotherMethod should exist");
+            
+            // Find the index of each method to check its corresponding access modifier
+            int testMethodIndex = methodNames.indexOf("testMethod");
+            int anotherMethodIndex = methodNames.indexOf("anotherMethod");
+            
+            assertEquals("public", methodAccessModifiers.get(testMethodIndex),
+                    "testMethod should be public");
+            assertEquals("private", methodAccessModifiers.get(anotherMethodIndex),
+                    "anotherMethod should be private");
         }
     }
 
@@ -228,8 +249,8 @@ class GraphDatabaseOperationsTest {
         dbOps.createInterfaceImplementation(PARENT_CLASS, TEST_INTERFACE);
         
         // Add methods to both classes
-        dbOps.createMethodNode(PARENT_CLASS, "parentMethod");
-        dbOps.createMethodNode(CHILD_CLASS, "childMethod");
+        dbOps.createMethodNode(PARENT_CLASS, "parentMethod", "public");
+        dbOps.createMethodNode(CHILD_CLASS, "childMethod", "private");
         
         // Add fields
         dbOps.createClassField(PARENT_CLASS, "parentField", "String", "protected");

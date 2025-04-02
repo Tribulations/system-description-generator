@@ -138,12 +138,30 @@ public class ASTAnalyzer {
             return;
         }
 
+        LoggerUtil.debug(getClass(), "Analyzing methods for class: {} (only analyze public methods: {})",
+                className, config.isOnlyAnalyzePublicMethods());
+
         classDecl.getMethods().forEach(method -> {
             String methodName = method.getNameAsString();
-            LoggerUtil.debug(getClass(), "Analyzing method: {}.{}", className, methodName);
-            dbOps.createMethodNode(className, methodName);
-            analyzeMethodCalls(method, methodName);
-            analyzeControlFlow(method, methodName);
+            boolean isPublic = method.isPublic();
+
+            // Skip non-public methods if specified by configuration
+            if (!config.isOnlyAnalyzePublicMethods() || isPublic) {
+                String visibility = isPublic ? "public" : 
+                                   method.isPrivate() ? "private" : 
+                                   method.isProtected() ? "protected" : "package-private";
+                
+                LoggerUtil.debug(getClass(), "Analyzing method: {}.{} with visibility {}",
+                        className, methodName, visibility);
+
+                dbOps.createMethodNode(className, methodName, visibility);
+
+                analyzeMethodCalls(method, methodName);
+                analyzeControlFlow(method, methodName);
+            } else {
+                LoggerUtil.debug(getClass(), "Skipping non-public method due to onlyAnalyzePublicMethods=true: {}.{}", 
+                        className, methodName);
+            }
         });
     }
 
@@ -172,10 +190,34 @@ public class ASTAnalyzer {
             return;
         }
 
+        LoggerUtil.debug(getClass(), "Analyzing method calls for method: {} (omit private method calls: {})",
+                methodName, config.isOmitPrivateMethodCalls());
+
+        // Get the parent class declaration to check for private methods if needed
+        ClassOrInterfaceDeclaration parentClass = method.findAncestor(ClassOrInterfaceDeclaration.class)
+                .orElse(null);
+        
         method.findAll(MethodCallExpr.class).forEach(methodCall -> {
             String methodCallName = methodCall.getNameAsString();
-            LoggerUtil.debug(getClass(), "Found method call: {} -> {}", methodName, methodCallName);
-            dbOps.createMethodCallNode(methodName, methodCallName);
+            boolean shouldAnalyze = true;
+            
+            // Omit private method calls within the same class if specified by configuration
+            if (config.isOmitPrivateMethodCalls() && parentClass != null) {
+                // Check if the called method exists in the same class and is private
+                boolean isPrivateMethodInSameClass = parentClass.getMethods().stream()
+                    .anyMatch(m -> m.getNameAsString().equals(methodCallName) && m.isPrivate());
+                
+                if (isPrivateMethodInSameClass) {
+                    LoggerUtil.debug(getClass(), "Skipping private method call within same class: {} -> {}", 
+                            methodName, methodCallName);
+                    shouldAnalyze = false;
+                }
+            }
+            
+            if (shouldAnalyze) {
+                LoggerUtil.debug(getClass(), "Found method call: {} -> {}", methodName, methodCallName);
+                dbOps.createMethodCallNode(methodName, methodCallName);
+            }
         });
     }
 

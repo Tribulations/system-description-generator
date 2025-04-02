@@ -198,6 +198,7 @@ public class InputHandler {
                 !filePath.contains("config") &&
                 !filePath.contains("util") &&
                 !filePath.contains("utils");
+        // TODO: we also might want to omit exception classes
     }
 
 //    public static void main(String[] args) {

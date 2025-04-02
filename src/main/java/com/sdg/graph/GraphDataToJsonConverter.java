@@ -139,8 +139,10 @@ public class GraphDataToJsonConverter {
     private void getMethods(String className, Session session, ClassNode classNode) {
         Result methodsResult = session.run(CypherConstants.GET_CLASS_METHODS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (methodsResult.hasNext()) {
-            String methodName = methodsResult.next().get(CypherConstants.PROP_METHOD_NAME).asString();
-            MethodNode methodNode = buildMethodNode(methodName, session);
+            Record record = methodsResult.next();
+            String methodName = record.get(CypherConstants.PROP_METHOD_NAME).asString();
+            String methodVisibility = record.get(CypherConstants.PROP_METHOD_VISIBILITY).asString("unknown");
+            MethodNode methodNode = buildMethodNode(methodName, methodVisibility, session);
             classNode.getMethods().add(methodNode);
         }
     }
@@ -175,12 +177,14 @@ public class GraphDataToJsonConverter {
      * A MethodNode represents a method with its own method calls and control flow.
      *
      * @param methodName the name of the method to build
+     * @param methodVisibility the visibility of the method
      * @param session the Neo4j session
      * @return a fully populated MethodNode
      */
-    private MethodNode buildMethodNode(String methodName, Session session) {
+    private MethodNode buildMethodNode(String methodName, String methodVisibility, Session session) {
         MethodNode methodNode = new MethodNode();
         methodNode.setName(methodName);
+        methodNode.setVisibility(methodVisibility);
 
         getMethodCalls(methodName, session, methodNode);
         getControlFlow(methodName, session, methodNode);
