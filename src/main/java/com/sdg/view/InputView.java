@@ -31,7 +31,7 @@ public class InputView extends JFrame {
      * Constructs the InputView UI, setting up layout and components.
      */
     public InputView() {
-        setTitle("File Input Handler");
+        setTitle("System Description Generator (SDG)");
         setSize(800, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -73,6 +73,8 @@ public class InputView extends JFrame {
         // Add Components
         add(inputPanel, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.CENTER);
+
+        descButton.setEnabled(false);
 
         setVisible(true);
     }
@@ -130,5 +132,14 @@ public class InputView extends JFrame {
      */
     public void addDecListener(ActionListener listener) {
         descButton.addActionListener(listener);
+    }
+
+    // Getter methods for buttons
+    public JButton getProcessButton() {
+        return processButton;
+    }
+
+    public JButton getDescButton() {
+        return descButton;
     }
 }
