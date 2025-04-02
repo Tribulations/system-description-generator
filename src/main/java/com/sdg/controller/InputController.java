@@ -51,10 +51,11 @@ public class InputController {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
         int result = fileChooser.showOpenDialog(null);
+        view.clearOutputArea();
 
         if (result == JFileChooser.APPROVE_OPTION) {
             String selectedPath = fileChooser.getSelectedFile().getAbsolutePath();
-            updateOutput("Selected: " + selectedPath);
+            //updateOutput("Selected: " + selectedPath);
             view.inputField.setText(selectedPath);
         }
     }
@@ -67,7 +68,7 @@ public class InputController {
         String inputPath = view.getInputPath().trim();
 
         // Validate user input before processing
-        if (inputPath.isEmpty()) {
+        if (inputPath.isEmpty() || inputPath.equals("Browse your project / Enter GitHub url...")) {
             updateOutput("Error: No input path provided.");
             return;
         }
@@ -78,7 +79,15 @@ public class InputController {
         // Subscribe to the RxJava observable processing files asynchronously
         disposables.add(
                 graphService.processKnowledgeGraph(inputPath)
+                        .subscribeOn(Schedulers.io())
                         .observeOn(swingScheduler)
+                        .doOnSubscribe(disposable -> view.showLoadingIndicator("Processing " +
+                                "files..."))
+                        .doFinally(() -> {
+                            view.setOutputText("Knowledge Graph created. " +
+                                    "You can generate the description now.");
+                            view.clearLoadingIndicator(); // Clear loading indicator after processing
+                        })
                         .subscribe(
                                 this::handleProcessingResult,
                                 this::handleProcessingError
@@ -92,7 +101,7 @@ public class InputController {
      * @param result The processing result containing file details and content.
      */
     private void handleProcessingResult(ProcessingResult result) {
-        updateOutput("\nProcessing file: " + result.file());
+        //updateOutput("\nProcessing file: " + result.file());
     }
 
     /**
@@ -102,6 +111,7 @@ public class InputController {
      */
     private void handleProcessingError(Throwable throwable) {
         String errorMessage = "\nError: " + throwable.getMessage();
+        view.clearLoadingIndicator();
         logger.error(errorMessage, throwable);
         updateOutput(errorMessage);
     }
@@ -111,11 +121,19 @@ public class InputController {
      */
     private void generateDescription() {
         view.getProcessButton().setEnabled(true);
+        view.clearOutputArea();
         disposables.add(
                 graphService.generateLLMResponseAsync()
-                        .observeOn(swingScheduler)
+                        .subscribeOn(Schedulers.io())   // Run on a background thread
+                        .observeOn(swingScheduler)     // UI updates on Swing thread
+                        .doOnSubscribe(disposable -> view.showLoadingIndicator("Generating description..."))
+                        .doFinally(view::clearLoadingIndicator) // Clear loading indicator after processing
                         .subscribe(
-                                response -> updateOutput("\nLLM Response: " + response),
+                                response -> {
+                                    view.clearLoadingIndicator();
+                                    updateOutput("\nSystem " +
+                                            "Description: " + response);
+                                },
                                 this::handleLLMProcessingError
                         )
         );
