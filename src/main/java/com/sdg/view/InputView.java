@@ -75,7 +75,7 @@ public class InputView extends JFrame {
         });
 
         browseButton = new JButton("Browse");
-        processButton = new JButton("Insert to Graph");
+        processButton = new JButton("Create Knowledge Graph");
         descButton = new JButton("Generate Description");
 
         // Configure input field to expand and fill available space
