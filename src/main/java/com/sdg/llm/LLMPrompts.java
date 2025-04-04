@@ -1,4 +1,4 @@
-package com.sdg.client;
+package com.sdg.llm;
 
 /**
  * This class provides prompts and utility methods for generating high-level descriptions.

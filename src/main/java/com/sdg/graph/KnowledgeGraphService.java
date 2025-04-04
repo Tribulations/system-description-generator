@@ -4,8 +4,8 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.sdg.ast.ASTAnalyzer;
 import com.sdg.ast.ASTAnalyzerConfig;
 import com.sdg.ast.JavaFileParser;
-import com.sdg.client.GeminiApiClient;
-import com.sdg.client.LLMService;
+import com.sdg.llm.GeminiApiClient;
+import com.sdg.llm.LLMService;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.model.InputHandler;
 import com.sdg.model.InputHandler.ProcessingResult;
@@ -98,7 +98,7 @@ public class KnowledgeGraphService implements AutoCloseable {
      * Finalizes processing by committing transactions and logging the execution time.
      */
     private void finalizeProcessing(long start) {
-        LoggerUtil.info(getClass(), "All files processed successfully.");
+        LoggerUtil.info(getClass(), "All files analyzed successfully.");
         commitRemainingTransactions();
         LoggerUtil.info(getClass(), "Processing took {} seconds.", (System.currentTimeMillis() - start) / 1000);
     }
@@ -110,7 +110,7 @@ public class KnowledgeGraphService implements AutoCloseable {
     }
 
     private void processFile(ProcessingResult result) {
-        LoggerUtil.info(getClass(), "Processing file: {}", result.file());
+        LoggerUtil.debug(getClass(), "Processing file: {}", result.file());
         ensureActiveBatchTransaction();
 
         try {

@@ -27,12 +27,12 @@ public class JavaFileParser {
      */
     public CompilationUnit parseFile(String filePath) {
         ParserConfiguration config = new ParserConfiguration();
-        config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
+        config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
         StaticJavaParser.setConfiguration(config);
         LoggerUtil.debug(getClass(), "Parsing Java file: {}", filePath);
         try {
             CompilationUnit cu = StaticJavaParser.parse(new FileInputStream(filePath));
-            LoggerUtil.info(getClass(), "Successfully parsed Java file: {}", filePath);
+            LoggerUtil.debug(getClass(), "Successfully parsed Java file: {}", filePath);
             return cu;
         } catch (FileNotFoundException e) {
             LoggerUtil.error(getClass(), "Failed to parse Java file: {}. File not found.", filePath, e);

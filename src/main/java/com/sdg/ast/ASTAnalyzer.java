@@ -65,9 +65,9 @@ public class ASTAnalyzer {
      */
 
     public void analyzeAndStore(CompilationUnit cu) {
-        LoggerUtil.info(getClass(), "Starting AST analysis");
+        LoggerUtil.debug(getClass(), "Starting AST analysis");
         analyzeClass(cu);
-        LoggerUtil.info(getClass(), "AST analysis completed");
+        LoggerUtil.debug(getClass(), "AST analysis completed");
     }
 
     private void analyzeClass(CompilationUnit cu) {

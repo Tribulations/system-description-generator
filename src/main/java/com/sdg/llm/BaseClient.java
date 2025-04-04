@@ -1,4 +1,4 @@
-package com.sdg.client;
+package com.sdg.llm;
 
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
