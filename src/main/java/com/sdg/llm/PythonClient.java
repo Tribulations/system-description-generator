@@ -1,4 +1,4 @@
-package com.sdg.client;
+package com.sdg.llm;
 
 import org.json.JSONObject;
 import com.sdg.logging.LoggerUtil;
