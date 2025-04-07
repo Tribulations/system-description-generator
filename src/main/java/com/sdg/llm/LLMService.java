@@ -1,4 +1,4 @@
-package com.sdg.client;
+package com.sdg.llm;
 
 import com.sdg.logging.LoggerUtil;
 import java.util.concurrent.CompletableFuture;

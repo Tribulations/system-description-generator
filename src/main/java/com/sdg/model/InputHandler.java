@@ -38,7 +38,7 @@ public class InputHandler {
                 .flatMap(file -> readAndPreprocessFileRx(file)
                         .subscribeOn(Schedulers.io())  // Process each file on a separate I/O thread
                         .map(content -> {
-                            logger.info("Processing file: " + file);
+                            logger.debug("Processing file: " + file);
                             return new ProcessingResult(file, content.length(), content);
                         })
                         .toObservable()
@@ -83,10 +83,10 @@ public class InputHandler {
 
         Path path = Paths.get(inputPath);
         if (Files.isDirectory(path)) {
-            logger.info("Processing directory: {}", inputPath);
+            logger.debug("Processing directory: {}", inputPath);
             javaFiles.addAll(collectJavaFiles(path));
         } else if (Files.isRegularFile(path) && inputPath.endsWith(".java")) {
-            logger.info("Processing single Java file: {}", inputPath);
+            logger.debug("Processing single Java file: {}", inputPath);
             javaFiles.add(path);
         } else {
             logger.error("Invalid input path: {}. Expected a Java file, directory, or Git repository.", inputPath);
