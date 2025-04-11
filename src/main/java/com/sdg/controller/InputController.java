@@ -77,8 +77,9 @@ public class InputController {
         view.getDescButton().setEnabled(true);
 
         // Subscribe to the RxJava observable processing files asynchronously
+        final boolean resetDatabase = true;
         disposables.add(
-                graphService.processKnowledgeGraph(inputPath)
+                graphService.processKnowledgeGraph(inputPath, resetDatabase)
                         .subscribeOn(Schedulers.io())
                         .observeOn(swingScheduler)
                         .doOnSubscribe(disposable -> view.showLoadingIndicator("Processing " +

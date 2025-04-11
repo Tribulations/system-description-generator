@@ -71,7 +71,11 @@ public class KnowledgeGraphService implements AutoCloseable {
      * @param inputPath Path to the source files.
      * @return Observable stream of processing results.
      */
-    public Observable<ProcessingResult> processKnowledgeGraph(String inputPath) {
+    public Observable<ProcessingResult> processKnowledgeGraph(String inputPath, boolean resetDatabase) {
+        if (resetDatabase) {
+            dbOps.deleteAllData();
+        }
+
         LoggerUtil.info(getClass(), "Processing knowledge graph for path: {}", inputPath);
 
         long start = System.currentTimeMillis();
