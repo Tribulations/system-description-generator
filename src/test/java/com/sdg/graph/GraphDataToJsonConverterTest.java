@@ -73,11 +73,12 @@ class GraphDataToJsonConverterTest {
         String childPath = Paths.get(childUrl.toURI()).toString();
 
         // Process each file and wait for completion
-        knowledgeGraphService.processKnowledgeGraph(interfacePath)
+        final boolean resetDatabase = false;
+        knowledgeGraphService.processKnowledgeGraph(interfacePath, resetDatabase)
             .blockingSubscribe();
-        knowledgeGraphService.processKnowledgeGraph(parentPath)
+        knowledgeGraphService.processKnowledgeGraph(parentPath, resetDatabase)
             .blockingSubscribe();
-        knowledgeGraphService.processKnowledgeGraph(childPath)
+        knowledgeGraphService.processKnowledgeGraph(childPath, resetDatabase)
             .blockingSubscribe();
 
         // Give Neo4j a moment to process all transactions
