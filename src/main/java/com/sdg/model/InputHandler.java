@@ -200,16 +200,4 @@ public class InputHandler {
                 !filePath.contains("utils");
         // TODO: we also might want to omit exception classes
     }
-
-//    public static void main(String[] args) {
-//        InputHandler inputHandler = new InputHandler();
-//        String repoUrl = "https://github.com/kishanrajput23/Java-Projects-Collections.git";
-//
-//        inputHandler.processFilesRx(repoUrl)
-//                .blockingForEach(result -> {
-//                    System.out.println("File: " + result.file());
-//                    System.out.println("Length of file content: " + result.contentLength());
-//                    System.out.println("Processed content: \n" + result.processedContent());
-//                });
-//    }
 }

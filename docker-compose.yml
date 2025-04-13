@@ -1,0 +1,34 @@
+### docker-compose.yml
+version: '3.8'
+
+services:
+  sdg:
+    build: .
+    container_name: sdg-app
+    image: sdg-app
+    volumes:
+      # --- Linux/macOS: mount root ---
+      - /:/mnt/host:ro
+      # --- Example mounting C-drive in windows---
+      - C:/:/mnt/host:ro
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    stdin_open: true
+    tty: true
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      - neo4j
+
+
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j
+    environment:
+      - NEO4J_AUTH=neo4j/password  # Change as per your environment
+    ports:
+      - "7474:7474"  # HTTP port for Neo4j Browser
+      - "7687:7687"  # Bolt protocol port for Neo4j
+    restart: unless-stopped

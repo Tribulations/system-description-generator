@@ -13,6 +13,9 @@ import javax.swing.JFileChooser;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.util.annotation.Nullable;
+
+import java.awt.GraphicsEnvironment;
 
 /**
  * The InputController class handles user interactions in the UI, processes input files,
@@ -33,11 +36,25 @@ public class InputController {
      * @param view  The UI component for user interaction.
      * @param graphService The service responsible for processing files and generating the knowledge graph.
      */
-    public InputController(InputView view, KnowledgeGraphService graphService) {
+    public InputController(@Nullable InputView view,
+                           KnowledgeGraphService graphService, HeadlessExecution headlessExecution) {
         this.view = view;
         this.graphService = graphService;
+        // For headless mode
 
-        // Attach event listeners to the UI buttons
+        if (GraphicsEnvironment.isHeadless()) {
+            // If headless, handle input from the terminal
+            headlessExecution.startHeadlessMode();
+        } else {
+            // GUI mode
+            initializeGUI();
+        }
+    }
+
+    /**
+     * Initializes the GUI and attaches event listeners.
+     */
+    private void initializeGUI() {
         view.addBrowseListener(e -> browseFile());
         view.addProcessListener(e -> processInput());
         view.addDecListener(e -> generateDescription());
@@ -170,21 +187,34 @@ public class InputController {
      * Initializes the UI and model, and ensures resources are cleaned up on shutdown.
      */
     public static void start() {
-        SwingUtilities.invokeLater(() -> {
-            InputView view = new InputView();
+        // Configure ASTAnalyzer for headless mode (no UI)
+        ASTAnalyzerConfig config = new ASTAnalyzerConfig()
+                .analyzeClassFields(false)
+                .analyzeControlFlow(false)
+                .onlyAnalyzePublicMethods(true)
+                .omitPrivateMethodCalls(true);
 
-            // Configure ASTAnalyzer to turn off analysis of specific parts of the AST
-            ASTAnalyzerConfig config = new ASTAnalyzerConfig()
-                    .analyzeClassFields(false)
-                    .analyzeControlFlow(false)
-                    .onlyAnalyzePublicMethods(true)
-                    .omitPrivateMethodCalls(true);
+        KnowledgeGraphService graphService = new KnowledgeGraphService(config);
+        HeadlessExecution headlessExecution = new HeadlessExecution(graphService);
 
-            KnowledgeGraphService graphService = new KnowledgeGraphService(config);  // Initialize KnowledgeGraphService
-            InputController controller = new InputController(view, graphService);
+        if (GraphicsEnvironment.isHeadless()) {
+            // If headless, handle input and processing via the terminal
+            System.out.println("Running in headless mode...");
 
-            // Ensure resources are disposed of when the application exits
+            // Pass null for the view in headless mode
+            InputController controller = new InputController(null, graphService, headlessExecution);
             Runtime.getRuntime().addShutdownHook(new Thread(controller::dispose));
-        });
+
+        } else {
+            // If not headless, initialize the GUI
+            SwingUtilities.invokeLater(() -> {
+                InputView view = new InputView();  // Initialize the InputView for GUI
+
+                InputController controller = new InputController(view, graphService, headlessExecution);
+
+                // Ensure resources are disposed of when the application exits
+                Runtime.getRuntime().addShutdownHook(new Thread(controller::dispose));
+            });
+        }
     }
 }
