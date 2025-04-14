@@ -3,6 +3,7 @@ package com.sdg.llm;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.cdimascio.dotenv.Dotenv;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -19,12 +20,17 @@ import java.util.concurrent.CompletableFuture;
  * @version 1.1
  */
 public class GeminiApiClient extends BaseClient {
+    // The API URL and API key are loaded from environment variables using
+    // Dotenv.
+    private static final Dotenv dotenv = Dotenv.load();
+
     public GeminiApiClient(final String apiUrl, final String apiKey) {
         super(apiUrl, apiKey);
     }
     
     public GeminiApiClient() {
-        this(GeminiApiConfig.API_URL, GeminiApiConfig.API_KEY);
+        //this(GeminiApiConfig.API_URL, GeminiApiConfig.API_KEY);
+        this(dotenv.get("GEMINI_API_URL"), dotenv.get("GEMINI_API_KEY"));
     }
 
     /**

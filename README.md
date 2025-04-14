@@ -120,3 +120,12 @@ python src/main/python/microservice/multiply_service.py
 ```bash
 mvn dependency:sources dependency:resolve -Dclassifier=javadoc
 ```
+
+### Windows user in docker container
+with docker command: 
+```bash
+docker run -v /c/Users/YourUsername/path/to/project:/container/path -it your-docker-image
+```
+Optionally, you can edit the dccker-compose.yml file to mount the volume in the container. 
+This way, you can access your files directly from the container without needing to specify the path each time.
+

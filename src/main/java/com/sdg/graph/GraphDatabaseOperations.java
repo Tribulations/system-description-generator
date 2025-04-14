@@ -1,6 +1,7 @@
 package com.sdg.graph;
 
 import com.sdg.logging.LoggerUtil;
+import io.github.cdimascio.dotenv.Dotenv;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
@@ -21,6 +22,7 @@ import static org.neo4j.driver.Values.parameters;
  * @see CypherConstants
  */
 public class GraphDatabaseOperations implements AutoCloseable {
+    private static final Dotenv dotenv = Dotenv.load();
     private final Driver driver;
     private Session batchSession;
     private Transaction batchTransaction;
@@ -30,10 +32,15 @@ public class GraphDatabaseOperations implements AutoCloseable {
      */
     public GraphDatabaseOperations() {
         LoggerUtil.info(getClass(), "Initializing GraphDatabaseOperations");
-        this.driver = GraphDatabase.driver(
-                Neo4jConfig.DB_URI, AuthTokens.basic(Neo4jConfig.DB_USER, Neo4jConfig.DB_PASSWORD)
-        );
-        LoggerUtil.debug(getClass(), "Neo4j driver initialized with URI: {}", Neo4jConfig.DB_URI);
+        String dbUri = dotenv.get("NEO4J_DB_URI");
+        String dbUser = dotenv.get("NEO4J_DB_USER");
+        String dbPassword = dotenv.get("NEO4J_DB_PASSWORD");
+
+        assert dbUser != null;
+        assert dbPassword != null;
+        this.driver = GraphDatabase.driver(dbUri, AuthTokens.basic(dbUser, dbPassword));
+        LoggerUtil.debug(getClass(), "Neo4j driver initialized with URI: {}",
+                dbUri);
     }
 
     /**
