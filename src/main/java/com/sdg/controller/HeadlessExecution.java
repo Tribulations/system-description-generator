@@ -34,7 +34,7 @@ public class HeadlessExecution {
                         .flatMapObservable(path -> {
                             String inputPath =convertHostPath(path);
                             // Process the graph in the background when input is provided
-                            return graphService.processKnowledgeGraph(inputPath)
+                            return graphService.processKnowledgeGraph(inputPath, true )
                                     .subscribeOn(Schedulers.io()) // Perform on background thread
                                     .doOnSubscribe(disposable -> System.out.println("Processing files..."))
                                     .doFinally(() -> System.out.println("Knowledge Graph created."));
