@@ -39,6 +39,7 @@ public class KnowledgeGraphService implements AutoCloseable {
     private final LLMService llmService;
     private final AtomicInteger processedFilesCount = new AtomicInteger(0);
     private static final int BATCH_COMMIT_THRESHOLD = 10; // Commit after every 10 files
+    private String systemName;
 
     /**
      * Default constructor initializes the service components.
@@ -78,6 +79,9 @@ public class KnowledgeGraphService implements AutoCloseable {
 
         LoggerUtil.info(getClass(), "Processing knowledge graph for path: {}", inputPath);
 
+        // Extract system name from input path
+        this.systemName = inputHandler.extractSystemName(inputPath);
+
         long start = System.currentTimeMillis();
         ensureBatchSession();
 
@@ -87,7 +91,6 @@ public class KnowledgeGraphService implements AutoCloseable {
                 .doOnError(this::handleError)
                 .doOnComplete(() -> finalizeProcessing(start));
     }
-
 
     /**
      * Ensures a batch session is active before processing files.
@@ -165,7 +168,6 @@ public class KnowledgeGraphService implements AutoCloseable {
         }
     }
 
-
     public Single<String> generateLLMResponseAsync() {
         return Single.create(emitter -> {
             // Get the CompletableFuture from the LLMService
@@ -184,7 +186,7 @@ public class KnowledgeGraphService implements AutoCloseable {
 
     private String getKnowledgeGraphAsJson() {
         try {
-            return GraphDataToJsonConverter.getTopLevelNodesAsJSONString();
+            return GraphDataToJsonConverter.getTopLevelNodesAsJSONString(systemName);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
