@@ -7,7 +7,6 @@ public class MethodNode {
     private String name;
     private String visibility;
     private List<MethodCallNode> methodCalls = new ArrayList<>();
-    private List<ControlFlowNode> controlFlow = new ArrayList<>();
 
     public MethodNode() {}
 
@@ -42,13 +41,5 @@ public class MethodNode {
 
     public void setMethodCalls(List<MethodCallNode> methodCalls) {
         this.methodCalls = methodCalls;
-    }
-
-    public List<ControlFlowNode> getControlFlow() {
-        return controlFlow;
-    }
-
-    public void setControlFlow(List<ControlFlowNode> controlFlow) {
-        this.controlFlow = controlFlow;
     }
 }

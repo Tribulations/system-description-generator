@@ -10,7 +10,6 @@ public class ClassNode {
     private List<String> extendedClasses = new ArrayList<>();
     private List<String> implementedInterfaces = new ArrayList<>();
     private List<MethodNode> methods = new ArrayList<>(); // TODO : rename e.g., hasMethods
-    private List<ClassFieldNode> fields = new ArrayList<>(); // TODO : rename e.g., hasFields
     private List<String> imports = new ArrayList<>();
 
     public ClassNode() {}
@@ -57,14 +56,6 @@ public class ClassNode {
 
     public void setMethods(List<MethodNode> methods) {
         this.methods = methods;
-    }
-
-    public List<ClassFieldNode> getFields() {
-        return fields;
-    }
-
-    public void setFields(List<ClassFieldNode> fields) {
-        this.fields = fields;
     }
 
     public List<String> getImports() {
