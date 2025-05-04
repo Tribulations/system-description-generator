@@ -1,11 +1,15 @@
 package com.sdg.graph.model;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class MethodNode {
     private String name;
     private String visibility;
+
+    @JsonSerialize(using = MethodCallNode.MethodCallListSerializer.class)
     private List<MethodCallNode> methodCalls = new ArrayList<>();
 
     public MethodNode() {}
