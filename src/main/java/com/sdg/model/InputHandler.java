@@ -225,6 +225,8 @@ public class InputHandler {
                 systemName = path.getFileName().toString();
                 LoggerUtil.info(getClass(), "Using system name from directory: {}", systemName);
             } else if (Files.isRegularFile(path)) {
+              reduce-json-size
+                // TODO for single file throw exception? Only allow selecting whole project folder
                 // For single file, use parent directory name
                 systemName = path.getParent().getFileName().toString();
                 LoggerUtil.info(getClass(), "Using system name from parent directory: {}", systemName);
