@@ -55,11 +55,12 @@ public class GraphDataToJsonConverter {
      * (especially where the relation is to its own class fields as this might not be the most significant).
      *
      * @param limit the maximum number of classes to include
+     * @param systemName the name of the system being analyzed
      * @return JSON string representation of the most important classes
      * @throws IOException if conversion to JSON fails
      */
-    public String jsonifyMostSignificantClasses(int limit) throws IOException {
-        SystemStructure system = new SystemStructure();
+    public String jsonifyMostSignificantClasses(int limit, String systemName) throws IOException {
+        SystemStructure system = new SystemStructure(systemName);
         
         try (Session session = neo4jDriver.session()) {            
             Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS,
@@ -77,8 +78,15 @@ public class GraphDataToJsonConverter {
         return objectMapper.writeValueAsString(system);
     }
 
-    public String jsonifyAllClasses(int limit) throws IOException {
-        SystemStructure system = new SystemStructure();
+    /**
+     * Overloaded method that uses a default system name
+     */
+    public String jsonifyMostSignificantClasses(int limit) throws IOException {
+        return jsonifyMostSignificantClasses(limit, "Not specified");
+    }
+
+    public String jsonifyAllClasses(int limit, String systemName) throws IOException {
+        SystemStructure system = new SystemStructure(systemName);
 
         try (Session session = neo4jDriver.session()) {
             Result result = session.run(CypherConstants.FIND_ALL_CLASSES);
@@ -93,6 +101,13 @@ public class GraphDataToJsonConverter {
         }
 
         return objectMapper.writeValueAsString(system);
+    }
+
+    /**
+     * Overloaded method that uses a default system name
+     */
+    public String jsonifyAllClasses(int limit) throws IOException {
+        return jsonifyAllClasses(limit, "Not Specified");
     }
 
     /**
@@ -211,16 +226,16 @@ public class GraphDataToJsonConverter {
         }
     }
 
-    public static void main(String... args) throws IOException {
-        System.out.println(getTopLevelNodesAsJSONString());
-    }
-
     public static String getTopLevelNodesAsJSONString() throws IOException {
+        return getTopLevelNodesAsJSONString("Unnamed System");
+    }
+    
+    public static String getTopLevelNodesAsJSONString(String systemName) throws IOException {
         try (GraphDatabaseOperations dbOps = new GraphDatabaseOperations()) {
             GraphDataToJsonConverter graphDataToJsonConverter = new GraphDataToJsonConverter(dbOps.getDriver());
 
             // Get the most significant classes as JSON
-            String json = graphDataToJsonConverter.jsonifyMostSignificantClasses(3);
+            String json = graphDataToJsonConverter.jsonifyMostSignificantClasses(3, systemName);
     
             return json;
         }

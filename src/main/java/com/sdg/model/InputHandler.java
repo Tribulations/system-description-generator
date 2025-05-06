@@ -1,17 +1,18 @@
 package com.sdg.model;
 
+import com.sdg.logging.LoggerUtil;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -23,8 +24,7 @@ import java.util.stream.Stream;
  * @author Suraj Karki
  */
 public class InputHandler {
-    // TODO obs we have logger util
-    private static final Logger logger = LoggerFactory.getLogger(InputHandler.class);
+    private String systemName = "Not specified";
 
     /**
      * Processes files reactively by reading and preprocessing each Java file found in the input path.
@@ -38,12 +38,12 @@ public class InputHandler {
                 .flatMap(file -> readAndPreprocessFileRx(file)
                         .subscribeOn(Schedulers.io())  // Process each file on a separate I/O thread
                         .map(content -> {
-                            logger.debug("Processing file: " + file);
+                            LoggerUtil.debug(getClass(), "Processing file: {}", file);
                             return new ProcessingResult(file, content.length(), content);
                         })
                         .toObservable()
                 )
-                .doOnComplete(() -> logger.info("Completed processing all files."));
+                .doOnComplete(() -> LoggerUtil.info(getClass(), "Completed processing all files."));
     }
 
     /**
@@ -65,15 +65,14 @@ public class InputHandler {
      */
     private List<Path> processInput(String inputPath) {
         if (inputPath == null || inputPath.isBlank()) {
-            logger.error("Provided input path is null or empty. Aborting processing.");
+            LoggerUtil.error(getClass(), "Provided input path is null or empty. Aborting processing.");
             return new ArrayList<>();
         }
 
         List<Path> javaFiles = new ArrayList<>();
-
         // Check if input is a Git repository URL
         if (inputPath.startsWith("https://") || inputPath.startsWith("git@")) {
-            logger.info("Detected Git repository. Cloning from: {}", inputPath);
+            LoggerUtil.info(getClass(), "Detected Git repository. Cloning from: {}", inputPath);
             Path repoPath = cloneGitRepository(inputPath);
             if (repoPath != null) {
                 javaFiles.addAll(collectJavaFiles(repoPath));
@@ -83,13 +82,13 @@ public class InputHandler {
 
         Path path = Paths.get(inputPath);
         if (Files.isDirectory(path)) {
-            logger.debug("Processing directory: {}", inputPath);
+            LoggerUtil.debug(getClass(), "Processing directory: {}", inputPath);
             javaFiles.addAll(collectJavaFiles(path));
         } else if (Files.isRegularFile(path) && inputPath.endsWith(".java")) {
-            logger.debug("Processing single Java file: {}", inputPath);
+            LoggerUtil.debug(getClass(), "Processing single Java file: {}", inputPath);
             javaFiles.add(path);
         } else {
-            logger.error("Invalid input path: {}. Expected a Java file, directory, or Git repository.", inputPath);
+            LoggerUtil.error(getClass(), "Invalid input path: {}. Expected a Java file, directory, or Git repository.", inputPath);
         }
         return javaFiles;
     }
@@ -102,23 +101,17 @@ public class InputHandler {
      */
     private List<Path> collectJavaFiles(Path rootDir) {
         List<Path> javaFiles = new ArrayList<>();
-
-        if (rootDir == null || !Files.exists(rootDir) || !Files.isDirectory(rootDir)) {
-            logger.error("Invalid directory: {}", rootDir);
-            return javaFiles;
-        }
-
-        try (Stream<Path> paths = Files.walk(rootDir).parallel()) {
-            paths.filter(Files::isRegularFile)  // Select only files, not directories
-                    .filter(this::isRelevantJavaFile) 
+        try (Stream<Path> pathStream = Files.walk(rootDir)) {
+            pathStream
+                    .filter(Files::isRegularFile) // Select only files, not directories
+                    .filter(this::isRelevantJavaFile)
                     .forEach(file -> {
-                        logger.debug("Identified Java file: {}", file);
+                        LoggerUtil.debug(getClass(), "Identified Java file: {}", file);
                         javaFiles.add(file);
                     });
         } catch (IOException e) {
-            logger.error("Failed to scan directory {}: {}", rootDir, e.getMessage());
+            LoggerUtil.error(getClass(), "Failed to scan directory {}: {}", rootDir, e);
         }
-
         return javaFiles;
     }
 
@@ -130,14 +123,17 @@ public class InputHandler {
      */
     private Path cloneGitRepository(String repoUrl) {
         try {
-            Path tempDir = Files.createTempDirectory("sdg-repo");
-            Git.cloneRepository().setURI(repoUrl).setDirectory(tempDir.toFile()).call();
-            logger.info("Repository cloned successfully: {}", tempDir);
+            Path tempDir = Files.createTempDirectory("git-clone-");
+            Git.cloneRepository()
+                    .setURI(repoUrl)
+                    .setDirectory(tempDir.toFile())
+                    .call();
+            LoggerUtil.info(getClass(), "Successfully cloned repository to: {}", tempDir);
             return tempDir;
         } catch (IOException | GitAPIException e) {
-            logger.error("Failed to clone repository: {}", repoUrl, e);
+            LoggerUtil.error(getClass(), "Failed to clone repository: {}", repoUrl, e);
+            return null;
         }
-        return null;
     }
 
     /**
@@ -150,7 +146,7 @@ public class InputHandler {
     private Single<String> readAndPreprocessFileRx(Path filePath) {
         return Single.fromCallable(() ->
                 readAndPreprocessFile(filePath)).onErrorReturn(throwable -> {
-            logger.warn("Failed to read file: {} | Error: {}", filePath, throwable.getMessage());
+            LoggerUtil.warn(getClass(), "Failed to read file: {} | Error: {}", filePath, throwable.getMessage());
             return "";
         });
     }
@@ -164,22 +160,21 @@ public class InputHandler {
      */
     private String readAndPreprocessFile(Path filePath) {
         if (filePath == null || !Files.exists(filePath)) {
-            logger.error("File does not exist: {}", filePath);
+            LoggerUtil.error(getClass(), "File does not exist: {}", filePath);
             return "";
         }
         try {
             return Files.readString(filePath, StandardCharsets.UTF_8).replaceAll("\\s+", " ").trim();
         } catch (MalformedInputException e) {
-            logger.warn("Malformed input detected in file: {}. Trying " +
-                    "ISO-8859-1 as fallback.\n", filePath);
+            LoggerUtil.warn(getClass(), "Malformed input detected in file: {}. Trying ISO-8859-1 as fallback.", filePath);
             try {
                 return Files.readString(filePath,
                         StandardCharsets.ISO_8859_1).replaceAll("\\s+", " ").trim();
             } catch (IOException ex) {
-                logger.error("Failed to read file with fallback encoding: {}", filePath, ex);
+                LoggerUtil.error(getClass(), "Failed to read file with fallback encoding: {}", filePath, ex);
             }
         } catch (IOException e) {
-            logger.error("Failed to read file: {}", filePath, e);
+            LoggerUtil.error(getClass(), "Failed to read file: {}", filePath, e);
         }
         return "";
     }
@@ -198,18 +193,44 @@ public class InputHandler {
                 !filePath.contains("config") &&
                 !filePath.contains("util") &&
                 !filePath.contains("utils");
-        // TODO: we also might want to omit exception classes
     }
 
-//    public static void main(String[] args) {
-//        InputHandler inputHandler = new InputHandler();
-//        String repoUrl = "https://github.com/kishanrajput23/Java-Projects-Collections.git";
-//
-//        inputHandler.processFilesRx(repoUrl)
-//                .blockingForEach(result -> {
-//                    System.out.println("File: " + result.file());
-//                    System.out.println("Length of file content: " + result.contentLength());
-//                    System.out.println("Processed content: \n" + result.processedContent());
-//                });
-//    }
+    /**
+     * Extracts a system name from the input path.
+     * For Git repositories, uses the repository name.
+     * For directories, uses the directory name.
+     *
+     * @param inputPath the path to extract system name from
+     */
+    public String extractSystemName(String inputPath) throws IllegalArgumentException {
+        if (inputPath == null || inputPath.isBlank()) {
+            throw new IllegalArgumentException("Input path is null or blank");
+        }
+
+        // For Git repositories
+        if (inputPath.startsWith("https://") || inputPath.startsWith("git@")) {
+            // Extract repository name from URL
+            String repoName;
+            if (inputPath.endsWith(".git")) {
+                repoName = inputPath.substring(inputPath.lastIndexOf('/') + 1, inputPath.length() - 4);
+            } else {
+                repoName = inputPath.substring(inputPath.lastIndexOf('/') + 1);
+            }
+            systemName = repoName;
+            LoggerUtil.info(getClass(), "Using system name from Git repository: {}", systemName);
+        } else {
+            // For file system paths
+            Path path = Path.of(inputPath);
+            if (Files.isDirectory(path)) {
+                systemName = path.getFileName().toString();
+                LoggerUtil.info(getClass(), "Using system name from directory: {}", systemName);
+            } else if (Files.isRegularFile(path)) {
+                // For single file, use parent directory name
+                systemName = path.getParent().getFileName().toString();
+                LoggerUtil.info(getClass(), "Using system name from parent directory: {}", systemName);
+            }
+        }
+
+        return systemName;
+    }
 }
