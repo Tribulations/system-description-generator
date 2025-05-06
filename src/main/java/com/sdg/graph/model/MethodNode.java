@@ -1,13 +1,16 @@
 package com.sdg.graph.model;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class MethodNode {
     private String name;
     private String visibility;
+
+    @JsonSerialize(using = MethodCallNode.MethodCallListSerializer.class)
     private List<MethodCallNode> methodCalls = new ArrayList<>();
-    private List<ControlFlowNode> controlFlow = new ArrayList<>();
 
     public MethodNode() {}
 
@@ -42,13 +45,5 @@ public class MethodNode {
 
     public void setMethodCalls(List<MethodCallNode> methodCalls) {
         this.methodCalls = methodCalls;
-    }
-
-    public List<ControlFlowNode> getControlFlow() {
-        return controlFlow;
-    }
-
-    public void setControlFlow(List<ControlFlowNode> controlFlow) {
-        this.controlFlow = controlFlow;
     }
 }

@@ -132,24 +132,25 @@ public class GraphDataToJsonConverter {
         return classNode;
     }
 
-    /**
-     * Get class fields and their names, types, and access modifiers for the specified class.
-     * 
-     * @param className the name of the class
-     * @param session the Neo4j session
-     * @param classNode the ClassNode to populate
-     */
-    private void getMemberFields(String className, Session session, ClassNode classNode) {
-        Result fieldsResult = session.run(CypherConstants.GET_CLASS_FIELDS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
-        while (fieldsResult.hasNext()) {
-            Record record = fieldsResult.next();
-            ClassFieldNode fieldNode = new ClassFieldNode();
-            fieldNode.setName(record.get(CypherConstants.PROP_FIELD_NAME).asString());
-            fieldNode.setType(record.get(CypherConstants.PROP_FIELD_TYPE).asString());
-            fieldNode.setVisibility(record.get(CypherConstants.PROP_VISIBILITY).asString());
-            classNode.getFields().add(fieldNode);
-        }
-    }
+    // TODO: Trying to remove unnecessary properties from @{link ClassNode}. This code will likely be removed later.
+//    /**
+//     * Get class fields and their names, types, and access modifiers for the specified class.
+//     *
+//     * @param className the name of the class
+//     * @param session the Neo4j session
+//     * @param classNode the ClassNode to populate
+//     */
+//    private void getMemberFields(String className, Session session, ClassNode classNode) {
+//        Result fieldsResult = session.run(CypherConstants.GET_CLASS_FIELDS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
+//        while (fieldsResult.hasNext()) {
+//            Record record = fieldsResult.next();
+//            ClassFieldNode fieldNode = new ClassFieldNode();
+//            fieldNode.setName(record.get(CypherConstants.PROP_FIELD_NAME).asString());
+//            fieldNode.setType(record.get(CypherConstants.PROP_FIELD_TYPE).asString());
+//            fieldNode.setVisibility(record.get(CypherConstants.PROP_VISIBILITY).asString());
+//            classNode.getFields().add(fieldNode);
+//        }
+//    }
 
     private void getMethods(String className, Session session, ClassNode classNode) {
         Result methodsResult = session.run(CypherConstants.GET_CLASS_METHODS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
@@ -202,21 +203,22 @@ public class GraphDataToJsonConverter {
         methodNode.setVisibility(methodVisibility);
 
         getMethodCalls(methodName, session, methodNode);
-        getControlFlow(methodName, session, methodNode);
+//        getControlFlow(methodName, session, methodNode);
 
         return methodNode;
     }
 
-    private void getControlFlow(String methodName, Session session, MethodNode methodNode) {
-        Result controlFlowResult = session.run(CypherConstants.GET_CONTROL_FLOW, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
-        while (controlFlowResult.hasNext()) {
-            Record record = controlFlowResult.next();
-            ControlFlowNode controlFlowNode = new ControlFlowNode();
-            controlFlowNode.setType(record.get(CypherConstants.PROP_TYPE).asString());
-            controlFlowNode.setCondition(record.get(CypherConstants.PROP_CONDITION).asString());
-            methodNode.getControlFlow().add(controlFlowNode);
-        }
-    }
+    // TODO: Trying to remove unnecessary properties from @{link ClassNode}. This code will likely be removed later.
+//    private void getControlFlow(String methodName, Session session, MethodNode methodNode) {
+//        Result controlFlowResult = session.run(CypherConstants.GET_CONTROL_FLOW, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
+//        while (controlFlowResult.hasNext()) {
+//            Record record = controlFlowResult.next();
+//            ControlFlowNode controlFlowNode = new ControlFlowNode();
+//            controlFlowNode.setType(record.get(CypherConstants.PROP_TYPE).asString());
+//            controlFlowNode.setCondition(record.get(CypherConstants.PROP_CONDITION).asString());
+//            methodNode.getControlFlow().add(controlFlowNode);
+//        }
+//    }
 
     private void getMethodCalls(String methodName, Session session, MethodNode methodNode) {
         Result callsResult = session.run(CypherConstants.GET_METHOD_CALLS, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
