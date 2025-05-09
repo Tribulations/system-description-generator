@@ -31,11 +31,7 @@ public class MethodCallAnalyzer {
         LoggerUtil.debug(getClass(), "Created MethodCallAnalyzer with default configuration");
     }
 
-    public Map<String, Integer> getMethodCallsMap() {
-        return methodCallsMap;
-    }
-
-    public void analyze(List<String> files, String rootDir) {
+    public Map<String, Integer> analyze(List<String> files, String rootDir) {
         LoggerUtil.debug(getClass(), "Starting method call analysis");
         JavaFileParser parser = new JavaFileParser();
 
@@ -66,6 +62,8 @@ public class MethodCallAnalyzer {
         }
 
         LoggerUtil.debug(getClass(), "method call analysis completed");
+
+        return methodCallsMap;
     }
 
     /**

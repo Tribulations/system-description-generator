@@ -1,5 +1,6 @@
 package com.sdg.ast;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.net.URL;
 import java.nio.file.Paths;
@@ -35,56 +36,50 @@ class MethodCallAnalyzerTest {
     private static final String CLASS5_METHOD1 = "com.sdg.ast.testdata.package1.Class5.method1()";
     private static final String CLASS6_METHOD1 = "com.sdg.ast.test.Class6.method1()";
 
-    private Map<String, Integer> analyzeMethodCalls() throws Exception {
+    private Map<String, Integer> mehodCallsMap;
+
+    @BeforeEach
+    void setUp() throws Exception {
         List<String> testFiles = getTestFiles();
         MethodCallAnalyzer analyzer = new MethodCallAnalyzer();
-        analyzer.analyze(testFiles, "src");
-        return analyzer.getMethodCallsMap();
+        mehodCallsMap = analyzer.analyze(testFiles, "src");
     }
 
     @Test
     void testMethodCallResultsAreNotEmpty() throws Exception {
-        Map<String, Integer> results = analyzeMethodCalls();
-        assertFalse(results.isEmpty());
+        assertFalse(mehodCallsMap.isEmpty());
     }
 
     @Test
     void testMethodsAreIdentified() throws Exception {
-        Map<String, Integer> results = analyzeMethodCalls();
-
-        assertNotNull(results.get(CLASS3_METHOD3));
-        assertNotNull(results.get(CLASS2_METHOD2));
+        assertNotNull(mehodCallsMap.get(CLASS3_METHOD3));
+        assertNotNull(mehodCallsMap.get(CLASS2_METHOD2));
     }
 
     @Test
     void testStandardLibraryMethodsAreNotIncluded() throws Exception {
-        Map<String, Integer> results = analyzeMethodCalls();
         String method1 = "java.io.PrintStream.println(java.lang.String)";
         String method2 = "java.lang.Long.valueOf(long)";
 
-        assertFalse(results.containsKey(method1));
-        assertFalse(results.containsKey(method2));
+        assertFalse(mehodCallsMap.containsKey(method1));
+        assertFalse(mehodCallsMap.containsKey(method2));
     }
 
     @Test
     void testNotCalledMethodsAreNotIncluded() throws Exception {
-        Map<String, Integer> results = analyzeMethodCalls();
-
-        assertFalse(results.containsKey(CLASS1_METHOD1));
-        assertFalse(results.containsKey(CLASS1_NOT_CALLED_METHOD));
-        assertFalse(results.containsKey(CLASS4_METHOD3));
+        assertFalse(mehodCallsMap.containsKey(CLASS1_METHOD1));
+        assertFalse(mehodCallsMap.containsKey(CLASS1_NOT_CALLED_METHOD));
+        assertFalse(mehodCallsMap.containsKey(CLASS4_METHOD3));
     }
 
     @Test
     void testMethodCallCounts() throws Exception {
-        Map<String, Integer> results = analyzeMethodCalls();
-
-        int methodCallCount2 = results.get(CLASS2_METHOD2);
-        int methodCallCount3 = results.get(CLASS3_METHOD3);
-        int methodCallCount4 = results.get(CLASS4_METHOD1);
-        int methodCallCount5 = results.get(CLASS4_METHOD2);
-        int methodCallCount6 = results.get(CLASS5_METHOD1);
-        int methodCallCount7 = results.get(CLASS6_METHOD1);
+        int methodCallCount2 = mehodCallsMap.get(CLASS2_METHOD2);
+        int methodCallCount3 = mehodCallsMap.get(CLASS3_METHOD3);
+        int methodCallCount4 = mehodCallsMap.get(CLASS4_METHOD1);
+        int methodCallCount5 = mehodCallsMap.get(CLASS4_METHOD2);
+        int methodCallCount6 = mehodCallsMap.get(CLASS5_METHOD1);
+        int methodCallCount7 = mehodCallsMap.get(CLASS6_METHOD1);
 
         assertEquals(2, methodCallCount2);
         assertEquals(3, methodCallCount3);
@@ -96,15 +91,14 @@ class MethodCallAnalyzerTest {
 
     @Test
     void testMethodsWithSameNameAreIdentified() throws Exception {
-        Map<String, Integer> results = analyzeMethodCalls();
 
-        int method1CallCount = results.get(CLASS2_METHOD2);
-        int method2CallCount = results.get(CLASS4_METHOD2);
+        int method1CallCount = mehodCallsMap.get(CLASS2_METHOD2);
+        int method2CallCount = mehodCallsMap.get(CLASS4_METHOD2);
 
-        assertNotNull(results.get(CLASS2_METHOD2));
-        assertNotNull(results.get(CLASS4_METHOD2));
-        assertTrue(results.containsKey(CLASS2_METHOD2));
-        assertTrue(results.containsKey(CLASS4_METHOD2));
+        assertNotNull(mehodCallsMap.get(CLASS2_METHOD2));
+        assertNotNull(mehodCallsMap.get(CLASS4_METHOD2));
+        assertTrue(mehodCallsMap.containsKey(CLASS2_METHOD2));
+        assertTrue(mehodCallsMap.containsKey(CLASS4_METHOD2));
         assertEquals(2, method1CallCount);
         assertEquals(1, method2CallCount);
     }
