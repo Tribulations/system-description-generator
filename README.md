@@ -1,6 +1,27 @@
 # System Description Generator
 
-## Neo4j
+## Setup Instructions
+
+To run the System Description Generator (SDG), follow these steps:
+
+1. **Install Neo4j locally**
+    - See the [Neo4j installation section](#neo4j-installation-and-configuration) below for instructions
+
+2. **Configure Neo4j connection**
+    - Create the file `Neo4jConfig.java` in `src/main/java/com/sdg/graph/`
+    - See [Neo4j config section](#configuration-setup-to-connect-to-the-database-from-the-java-application) for the required configuration
+
+3. **Obtain an LLM API key**
+    - Choose either [Anthropic (Claude)](https://www.anthropic.com/api) (paid) or [Google Gemini](https://ai.google.dev/) (free)
+    - Create an account and generate your API key
+
+4. **Configure LLM API**
+    - See [LLM config section](#LLM-configuration) for the required configuration
+
+5. **Build and run**
+    - Compile and run the SDG application
+
+## Neo4j installation and configuration
 
 ### Query the database in browser interface
 
@@ -92,16 +113,54 @@ public class Neo4jConfig {
     }
 
     public static final String DB_URI = "bolt://localhost:7687";
-    public static final String DB_USER = "neo4j";
-    public static final String DB_PASSWORD = "your-password";  // Replace with the password you set
+    public static final String DB_USER = "your-username";
+    public static final String DB_PASSWORD = "your-password";
 }
 ```
 
-// TODO add Windows installation steps
+### Installation on Windows (TODO)
 
-## Python Microservice & Java Client
+## LLM configuration
 
-### Intall Python modules and dependencies
+### Create a `GeminiApiConfig.java` or `ClaudeApiConfig.java` in `src/main/java/com/sdg/llm/`
+
+**GeminiApiConfig.java**
+```java
+package com.sdg.llm;
+
+public class GeminiApiConfigTemplate {
+    private GeminiApiConfigTemplate() {
+        throw new IllegalStateException("Cannot instantiate this class");
+    }
+
+    public static final String API_KEY = "your-api-key";
+    public static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+}
+```
+
+**ClaudeApiConfig.java**
+```java
+package com.sdg.llm;
+
+public class ClaudeApiConfigTemplate {
+    private ClaudeApiConfigTemplate() {
+        throw new IllegalStateException("Cannot instantiate this class");
+    }
+
+    public static final String API_KEY = "your-api-key";
+    public static final String API_URL = "https://api.anthropic.com/v1/messages";
+    public static final String API_VERSION = "2023-06-01";
+    public static final String MODEL = "claude-3-5-sonnet-20241022";
+}
+```
+
+## Logging
+
+Logging levels and other settings can be set in `src/main/resources/logback.xml`
+
+## Python Microservice & Java Client (Currently not used by the application)
+
+### Install Python modules and dependencies
 
 ```bash
 pip install -r src/main/python/requirements.txt
