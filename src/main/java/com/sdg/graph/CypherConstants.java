@@ -25,6 +25,8 @@ public final class CypherConstants {
     public static final String PROP_IMPORT_NAME = "importName";
     public static final String PROP_PACKAGE_NAME = "packageName";
     public static final String PROP_METHOD_VISIBILITY = "methodVisibility";
+    public static final String PROP_METHOD_RETURN_TYPE = "returnType";
+    public static final String PROP_METHOD_PARAMETERS = "parameters";
 
     /** Query to create a new Class node. Parameters: name */
     public static final String CREATE_CLASS = 
@@ -36,8 +38,12 @@ public final class CypherConstants {
         "SET c.packageName = $packageName";
 
     /** Query to create a new Method node. Parameters: methodName, methodVisibility */
-    public static final String CREATE_METHOD = 
-        "MERGE (m:Method {methodName: $methodName, methodVisibility: $methodVisibility})";
+    public static final String CREATE_METHOD =
+        "MERGE (m:Method {methodName: $methodName, methodVisibility: $methodVisibility, " +
+                "returnType: $returnType, parameters: $parameters})";
+//    public static final String CREATE_METHOD = String.format("MERGE (m:Method {%s: $methodName, %s: $methodVisibility, " +
+//            "%s: $returnType, %s: $parameters})", PROP_METHOD_NAME, PROP_METHOD_VISIBILITY,
+//            PROP_METHOD_RETURN_TYPE, PROP_METHOD_PARAMETERS);
 
     /** Query to connect Method to its Class. Parameters: className, methodName */
     public static final String CONNECT_METHOD_TO_CLASS = 
@@ -116,7 +122,8 @@ public final class CypherConstants {
     /** Query to get methods of a class. Parameters: className */
     public static final String GET_CLASS_METHODS =
         "MATCH (c:Class {className: $className})-[:HAS_METHOD]->(m:Method) " +
-                "RETURN m.methodName as methodName, m.methodVisibility as methodVisibility";
+                "RETURN m.methodName as methodName, m.methodVisibility as methodVisibility, " +
+                "m.returnType as returnType, m.parameters as parameters";
 
     /** Query to get implemented interfaces of a class. Parameters: className */
     public static final String GET_CLASS_INTERFACES =

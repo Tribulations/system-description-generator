@@ -8,6 +8,8 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 import org.neo4j.driver.Value;
 
+import java.util.List;
+
 import static org.neo4j.driver.Values.parameters;
 
 /**
@@ -204,17 +206,22 @@ public class GraphDatabaseOperations implements AutoCloseable {
      * @param className the name of the class containing the method
      * @param methodName the name of the method to create
      * @param visibility the access modifier of the method (public, private, protected, package-private)
+     * @param returnType the return type of the method
+     * @param parameters the parameters of the method
      * @throws IllegalStateException if no batch transaction is active
      */
-    public void createMethodNode(String className, String methodName, String visibility) throws IllegalStateException {
+    public void createMethodNode(String className, String methodName, String visibility,
+                                 String returnType, String parameters) throws IllegalStateException {
         verifyBatchTransactionActive("create method node");
-        LoggerUtil.debug(getClass(), "Creating method node in batch transaction: {}.{} with visibility {}", 
-                className, methodName, visibility);
+        LoggerUtil.debug(getClass(), "Creating method node in batch transaction: {}.{} with visibility {}, " +
+                        "return type: {}, parameters: {}", className, methodName, visibility, returnType, parameters);
         
         // Create method node with visibility
         executeInBatchTransaction(CypherConstants.CREATE_METHOD,
                 parameters(CypherConstants.PROP_METHOD_NAME, methodName,
-                          CypherConstants.PROP_METHOD_VISIBILITY, visibility));
+                          CypherConstants.PROP_METHOD_VISIBILITY, visibility,
+                          CypherConstants.PROP_METHOD_RETURN_TYPE, returnType,
+                          CypherConstants.PROP_METHOD_PARAMETERS, parameters));
         
         // Connect method to class
         executeInBatchTransaction(CypherConstants.CONNECT_METHOD_TO_CLASS,

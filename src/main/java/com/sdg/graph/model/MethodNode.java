@@ -8,6 +8,8 @@ import java.util.List;
 public class MethodNode {
     private String name;
     private String visibility;
+    private String returnType;
+    private String parameters;
 
     @JsonSerialize(using = MethodCallNode.MethodCallListSerializer.class)
     private List<MethodCallNode> methodCalls = new ArrayList<>();
@@ -37,6 +39,22 @@ public class MethodNode {
 
     public void setVisibility(String visibility) {
         this.visibility = visibility;
+    }
+
+    public String getReturnType() {
+        return returnType;
+    }
+
+    public void setReturnType(String returnType) {
+        this.returnType = returnType;
+    }
+
+    public String getParameters() {
+        return parameters;
+    }
+
+    public void setParameters(String parameters) {
+        this.parameters = parameters;
     }
 
     public List<MethodCallNode> getMethodCalls() {

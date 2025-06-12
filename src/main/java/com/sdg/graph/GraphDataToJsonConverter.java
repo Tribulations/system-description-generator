@@ -2,6 +2,7 @@ package com.sdg.graph;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.sdg.logging.LoggerUtil;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
@@ -156,9 +157,16 @@ public class GraphDataToJsonConverter {
         Result methodsResult = session.run(CypherConstants.GET_CLASS_METHODS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (methodsResult.hasNext()) {
             Record record = methodsResult.next();
+
+            // TODO: only include properties that are non-empty
             String methodName = record.get(CypherConstants.PROP_METHOD_NAME).asString();
             String methodVisibility = record.get(CypherConstants.PROP_METHOD_VISIBILITY).asString("unknown");
-            MethodNode methodNode = buildMethodNode(methodName, methodVisibility, session);
+            String methodReturnType = record.get(CypherConstants.PROP_METHOD_RETURN_TYPE).asString("unknown");
+            String methodParameters = record.get(CypherConstants.PROP_METHOD_PARAMETERS).asString("unknown");
+
+            LoggerUtil.debug(getClass(), "Retrieving method: {}, with methodVisibility: {}, methodReturnType: {}, methodParameters: {}", methodName, methodVisibility, methodReturnType, methodParameters);
+
+            MethodNode methodNode = buildMethodNode(methodName, methodVisibility, methodReturnType, methodParameters, session);
             classNode.getMethods().add(methodNode);
         }
     }
@@ -197,10 +205,13 @@ public class GraphDataToJsonConverter {
      * @param session the Neo4j session
      * @return a fully populated MethodNode
      */
-    private MethodNode buildMethodNode(String methodName, String methodVisibility, Session session) {
+    private MethodNode buildMethodNode(String methodName, String methodVisibility, String returnType,
+                                       String parameters, Session session) {
         MethodNode methodNode = new MethodNode();
         methodNode.setName(methodName);
         methodNode.setVisibility(methodVisibility);
+        methodNode.setReturnType(returnType);
+        methodNode.setParameters(parameters);
 
         getMethodCalls(methodName, session, methodNode);
 //        getControlFlow(methodName, session, methodNode);
