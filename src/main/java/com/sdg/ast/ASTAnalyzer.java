@@ -1,14 +1,18 @@
 package com.sdg.ast;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.graph.GraphDatabaseOperations;
+
+import java.util.Map;
 
 /**
  * Analyzes Java Abstract Syntax Trees (AST) and stores the analysis results in a graph database.
@@ -64,13 +68,13 @@ public class ASTAnalyzer {
      * @param cu the AST to analyze
      */
 
-    public void analyzeAndStore(CompilationUnit cu) {
+    public void analyzeAndStore(CompilationUnit cu, Map<String, Integer> methodCallsMap) {
         LoggerUtil.debug(getClass(), "Starting AST analysis");
-        analyzeClass(cu);
+        analyzeClass(cu, methodCallsMap);
         LoggerUtil.debug(getClass(), "AST analysis completed");
     }
 
-    private void analyzeClass(CompilationUnit cu) {
+    private void analyzeClass(CompilationUnit cu, Map<String, Integer> methodCallsMap) {
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(classDecl -> {
             String className = classDecl.getNameAsString();
 
@@ -88,7 +92,7 @@ public class ASTAnalyzer {
             analyzeInterfaceImplementations(classDecl, className);
             analyzeImports(cu, className);
             analyzeFields(classDecl, className);
-            analyzeMethods(classDecl, className);
+            analyzeMethods(classDecl, className, methodCallsMap);
         });
     }
 
@@ -132,7 +136,7 @@ public class ASTAnalyzer {
         });
     }
 
-    private void analyzeMethods(ClassOrInterfaceDeclaration classDecl, String className) {
+    private void analyzeMethods(ClassOrInterfaceDeclaration classDecl, String className, Map<String, Integer> methodCallsMap) {
         if (!config.isAnalyzeMethods()) {
             LoggerUtil.debug(getClass(), "Skipping methods analysis due to configuration");
             return;
@@ -142,24 +146,41 @@ public class ASTAnalyzer {
                 className, config.isOnlyAnalyzePublicMethods());
 
         classDecl.getMethods().forEach(method -> {
-            String methodName = method.getNameAsString();
             boolean isPublic = method.isPublic();
+            String methodName = method.getNameAsString();
+
+            String methodFullyQualifiedName = classDecl.getFullyQualifiedName().get() + "." + method.getSignature();
+
+            if (!methodCallsMap.containsKey(methodFullyQualifiedName)) {
+                LoggerUtil.debug(getClass(), "Skipping method due to no calls: {}", methodFullyQualifiedName);
+                return;
+            } else {
+                LoggerUtil.debug(getClass(), "Including method: {}", methodFullyQualifiedName);
+            }
 
             // Skip non-public methods if specified by configuration
             if (!config.isOnlyAnalyzePublicMethods() || isPublic) {
-                String visibility = isPublic ? "public" : 
-                                   method.isPrivate() ? "private" : 
+                String visibility = isPublic ? "public" :
+                                   method.isPrivate() ? "private" :
                                    method.isProtected() ? "protected" : "package-private";
-                
+
+                String returnType = method.getType().asString();
+                NodeList<Parameter> methodParameters =method.getParameters();
+                StringBuilder paramBuilder = new StringBuilder();
+                if (!methodParameters.isEmpty()) {
+                    methodParameters.forEach(param -> paramBuilder.append(param.getType().asString()).append(", "));
+                }
+
+
                 LoggerUtil.debug(getClass(), "Analyzing method: {}.{} with visibility {}",
                         className, methodName, visibility);
 
-                dbOps.createMethodNode(className, methodName, visibility);
+                dbOps.createMethodNode(className, methodName, visibility, returnType, paramBuilder.toString());
 
                 analyzeMethodCalls(method, methodName);
                 analyzeControlFlow(method, methodName);
             } else {
-                LoggerUtil.debug(getClass(), "Skipping non-public method due to onlyAnalyzePublicMethods=true: {}.{}", 
+                LoggerUtil.debug(getClass(), "Skipping non-public method due to onlyAnalyzePublicMethods=true: {}.{}",
                         className, methodName);
             }
         });
