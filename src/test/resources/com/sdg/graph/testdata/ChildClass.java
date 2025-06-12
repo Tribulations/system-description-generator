@@ -12,6 +12,10 @@ public class ChildClass extends ParentClass {
     public void doSomething() {
         System.out.println("Child doing something");
         super.doSomething();
+
+        // Only called methods gets insertet to the knowledge graph
+        ChildClass childClass = new ChildClass("parentField", "childField");
+        childClass.getChildField();
     }
     
     public String getChildField() {
