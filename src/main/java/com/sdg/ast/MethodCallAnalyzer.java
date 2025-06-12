@@ -1,5 +1,6 @@
 package com.sdg.ast;
 
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -13,6 +14,7 @@ import com.sdg.logging.LoggerUtil;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,7 +33,7 @@ public class MethodCallAnalyzer {
         LoggerUtil.debug(getClass(), "Created MethodCallAnalyzer with default configuration");
     }
 
-    public Map<String, Integer> analyze(List<String> files, String rootDir) {
+    public Map<String, Integer> analyze(List<Path> files, String rootDir) {
         LoggerUtil.debug(getClass(), "Starting method call analysis");
         JavaFileParser parser = new JavaFileParser();
 
@@ -45,16 +47,17 @@ public class MethodCallAnalyzer {
         addDirectoriesForAnalyzedFiles(allDirsInRoot, combinedTypeSolver);
 
         // Also add parent directories of analyzed files
-        addDirectoriesForAnalyzedFiles(files, combinedTypeSolver);
+        addDirectoriesForAnalyzedFiles(files.stream().map(Path::toString).toList(), combinedTypeSolver);
 
         // Create and configure the symbol solver
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
-        StaticJavaParser.getParserConfiguration().setSymbolResolver(symbolSolver);
+        StaticJavaParser.getParserConfiguration().setSymbolResolver(symbolSolver)
+                .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
 
         // Put called methods in map
-        for (String file : files) {
+        for (Path file : files) {
             try {
-                CompilationUnit compilationUnit = StaticJavaParser.parse(new File(file));
+                CompilationUnit compilationUnit = StaticJavaParser.parse(new File(file.toString()));
                 resolveMethodCalls(compilationUnit);
             } catch (FileNotFoundException e) {
                 throw new RuntimeException(e);
@@ -79,7 +82,10 @@ public class MethodCallAnalyzer {
     }
 
     private void collectDirectoriesRecursive(File dir, List<String> dirs) {
-        if (dir.isDirectory()) {
+        boolean isTargetDir = dir.getName().equals("target");
+        boolean isHiddenDir = dir.getName().startsWith(".");
+
+        if (dir.isDirectory() && !isHiddenDir && !isTargetDir) {
             dirs.add(dir.getAbsolutePath());
             File[] children = dir.listFiles(File::isDirectory);
             if (children != null) {
@@ -111,15 +117,19 @@ public class MethodCallAnalyzer {
         compilationUnit.findAll(MethodCallExpr.class)
                 .forEach(methodCall -> {
                     try {
+
+                        // TODO debugging why this method call is not resolved
+                        if (methodCall.toString().equalsIgnoreCase("LoggerUtil.debug(getClass(), \"Processing file: {}\", result.file())")) {
+                            return;
+                        }
+
                         String resolvedSignature = methodCall.resolve().getQualifiedSignature();
 
                         if (resolvedSignature.startsWith("java")) {
                             return;
                         }
 
-                        methodCallsMap.compute(resolvedSignature, (k, methodCallCount)
-                                -> methodCallCount == null ? 1
-                                : ++methodCallCount);
+                        incrementMethodCallCount(resolvedSignature);
 
                     } catch (UnsolvedSymbolException e) {
                         String scope = methodCall.getScope().map(Object::toString).orElse("this");
@@ -130,5 +140,11 @@ public class MethodCallAnalyzer {
                                 methodCall, e.getMessage());
                     }
                 });
+    }
+
+    private void incrementMethodCallCount(String resolvedSignature) {
+        methodCallsMap.compute(resolvedSignature, (k, methodCallCount)
+                -> methodCallCount == null ? 1
+                : ++methodCallCount);
     }
 }
