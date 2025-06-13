@@ -4,6 +4,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.sdg.ast.ASTAnalyzer;
 import com.sdg.ast.ASTAnalyzerConfig;
 import com.sdg.ast.JavaFileParser;
+import com.sdg.ast.MethodCallAnalyzer;
 import com.sdg.llm.GeminiApiClient;
 import com.sdg.llm.LLMService;
 import com.sdg.logging.LoggerUtil;
@@ -15,6 +16,9 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,6 +44,7 @@ public class KnowledgeGraphService implements AutoCloseable {
     private final AtomicInteger processedFilesCount = new AtomicInteger(0);
     private static final int BATCH_COMMIT_THRESHOLD = 10; // Commit after every 10 files
     private String systemName;
+    private final Map<String, Integer> methodCallsMap = new HashMap<>();
 
     /**
      * Default constructor initializes the service components.
@@ -85,7 +90,16 @@ public class KnowledgeGraphService implements AutoCloseable {
         long start = System.currentTimeMillis();
         ensureBatchSession();
 
-        return inputHandler.processFilesRx(inputPath)
+        // TODO: this logic is temporary while developing a better, nonblocking solution
+        // Collect all Java files and analyze them before any DB insertion
+        List<Path> javaFiles = inputHandler.getAllJavaFiles(inputPath);
+        MethodCallAnalyzer methodCallAnalyzer = new MethodCallAnalyzer();
+        Map<String, Integer> methodCallMap = methodCallAnalyzer.analyze(javaFiles, inputPath);
+        this.methodCallsMap.clear();
+        this.methodCallsMap.putAll(methodCallMap);
+
+        return Observable.fromIterable(javaFiles)
+                .map(file -> new ProcessingResult(file, 0, ""))
                 .observeOn(Schedulers.io())
                 .doOnNext(this::processFile)
                 .doOnError(this::handleError)
@@ -136,7 +150,7 @@ public class KnowledgeGraphService implements AutoCloseable {
 
     private void insertToGraphDatabase(Path filePath) {
         CompilationUnit cu = parser.parseFile(filePath.toString());
-        analyzer.analyzeAndStore(cu);
+        analyzer.analyzeAndStore(cu, methodCallsMap);
     }
 
     private synchronized void manageBatchCommits() {
