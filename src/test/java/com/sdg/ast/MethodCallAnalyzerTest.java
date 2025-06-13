@@ -3,8 +3,9 @@ package com.sdg.ast;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.net.URL;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,7 +41,7 @@ class MethodCallAnalyzerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        List<String> testFiles = getTestFiles();
+        List<Path> testFiles = getTestFiles();
         MethodCallAnalyzer analyzer = new MethodCallAnalyzer();
         mehodCallsMap = analyzer.analyze(testFiles, "src");
     }
@@ -103,30 +104,21 @@ class MethodCallAnalyzerTest {
         assertEquals(1, method2CallCount);
     }
 
-    private List<String> getTestFiles() throws Exception {
-        // Get test file paths using ClassLoader with proper package structure
+    private List<Path> getTestFiles() throws Exception {
+        List<Path> testFiles = new ArrayList<>();
+        testFiles.add(Paths.get(getResourcePath(CLASS1)));
+        testFiles.add(Paths.get(getResourcePath(CLASS2)));
+        testFiles.add(Paths.get(getResourcePath(CLASS3)));
+        testFiles.add(Paths.get(getResourcePath(CLASS4)));
+        testFiles.add(Paths.get(getResourcePath(CLASS5)));
+        testFiles.add(Paths.get(getResourcePath(CLASS6)));
+        return testFiles;
+    }
+
+    private String getResourcePath(String resourceName) throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
-        URL class1Url = Objects.requireNonNull(classLoader.getResource(CLASS1),
-                "Test resource not found: " + CLASS1);
-        URL class2Url = Objects.requireNonNull(classLoader.getResource(CLASS2),
-                "Test resource not found: " + CLASS2);
-        URL class3Url = Objects.requireNonNull(classLoader.getResource(CLASS3),
-                "Test resource not found: " + CLASS3);
-        URL class4Url = Objects.requireNonNull(classLoader.getResource(CLASS4),
-                "Test resource not found: " + CLASS4);
-        URL class5Url = Objects.requireNonNull(classLoader.getResource(CLASS5),
-                "Test resource not found: " + CLASS5);
-        URL class6Url = Objects.requireNonNull(classLoader.getResource(CLASS6),
-                "Test resource not found: " + CLASS6);
-
-        // Convert URLs to paths
-        String class1Path = Paths.get(class1Url.toURI()).toString();
-        String class2Path = Paths.get(class2Url.toURI()).toString();
-        String class3Path = Paths.get(class3Url.toURI()).toString();
-        String class4Path = Paths.get(class4Url.toURI()).toString();
-        String class5Path = Paths.get(class5Url.toURI()).toString();
-        String class6Path = Paths.get(class6Url.toURI()).toString();
-
-        return Arrays.asList(class1Path, class2Path, class3Path, class4Path, class5Path, class6Path);
+        URL resourceUrl = Objects.requireNonNull(classLoader.getResource(resourceName),
+                "Test resource not found: " + resourceName);
+        return Paths.get(resourceUrl.toURI()).toString();
     }
 }
