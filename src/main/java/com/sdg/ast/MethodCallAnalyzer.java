@@ -1,7 +1,8 @@
 package com.sdg.ast;
 
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParseResult;
 import com.github.javaparser.ParserConfiguration;
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.resolution.TypeSolver;
@@ -24,64 +25,78 @@ import java.util.Set;
 
 /**
  * Class for performing an initial analysis of Java Abstract Syntax Trees (AST) to count method calls using JavaParser.
+ * The method analyze() takes a Java file as input and returns a map of method names and the number of times they are called.
+ *
+ * @author Joakim Colloz
+ * @version 1.0
  */
 public class MethodCallAnalyzer {
-//    private final Map<String, List<String>> methodDefinitions = new HashMap<>();
-    private final Map<String, Integer> methodCallsMap = new HashMap<>();
+    private TypeSolver reflectionTypeSolver = new ReflectionTypeSolver();
+    private CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+    private JavaSymbolSolver symbolSolver;
 
-    public MethodCallAnalyzer() {
-        LoggerUtil.debug(getClass(), "Created MethodCallAnalyzer with default configuration");
-    }
-
-    public Map<String, Integer> analyze(List<Path> files, String rootDir) {
-        LoggerUtil.debug(getClass(), "Starting method call analysis");
-        JavaFileParser parser = new JavaFileParser();
-
+    public MethodCallAnalyzer(final String rootDir) {
         // Create solvers
-        TypeSolver reflectionTypeSolver = new ReflectionTypeSolver();
-        CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+        reflectionTypeSolver = new ReflectionTypeSolver();
+        combinedTypeSolver = new CombinedTypeSolver();
         combinedTypeSolver.add(reflectionTypeSolver);
 
         // Add all directories in rootDir as source roots
         List<String> allDirsInRoot = getAllDirectoriesInRoot(rootDir);
-        addDirectoriesForAnalyzedFiles(allDirsInRoot, combinedTypeSolver);
-
-        // Also add parent directories of analyzed files
-        addDirectoriesForAnalyzedFiles(files.stream().map(Path::toString).toList(), combinedTypeSolver);
+        addDirectoriesToTypeSolvers(allDirsInRoot, combinedTypeSolver);
 
         // Create and configure the symbol solver
-        JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
-        StaticJavaParser.getParserConfiguration().setSymbolResolver(symbolSolver)
-                .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
+        this.symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
 
-        // Put called methods in map
-        for (Path file : files) {
-            try {
-                CompilationUnit compilationUnit = StaticJavaParser.parse(new File(file.toString()));
-                resolveMethodCalls(compilationUnit);
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException(e);
-            }
+        LoggerUtil.debug(getClass(), "Created MethodCallAnalyzer with rootDir: {}", rootDir);
+    }
+
+    /**
+     * Analyze a Java file and return a map of the method signatures and the number of times they are called.
+     * @param file the Java file to analyze
+     * @return a map of the method signatures and the number of times they are called
+     */
+    public Map<String, Integer> analyze(final Path file) {
+        LoggerUtil.debug(getClass(), "Starting method call analysis for file {}", file.toString());
+
+        Map<String, Integer> methodCallsMap = new HashMap<>();
+
+        JavaParser javaParser = new JavaParser();
+        javaParser.getParserConfiguration()
+                .setSymbolResolver(symbolSolver)
+                .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21)
+                // Below configuration is for optimization, though, not sure if it makes a difference
+                .setStoreTokens(false)
+                .setAttributeComments(false)
+                .setIgnoreAnnotationsWhenAttributingComments(true);
+
+        try {
+            ParseResult<CompilationUnit> compilationUnit = javaParser.parse(new File(file.toString()));
+            resolveMethodCalls(compilationUnit.getResult().get(), methodCallsMap);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
         }
 
-        LoggerUtil.debug(getClass(), "method call analysis completed");
+        LoggerUtil.debug(getClass(), "method call analysis of file {} completed", file.toString());
 
         return methodCallsMap;
     }
 
     /**
-     * Returns a list of all directory paths (recursively) under the given root directory.
+     * Returns a list of all directory paths under the given root directory.
      */
     private List<String> getAllDirectoriesInRoot(String rootDir) {
         List<String> dirs = new ArrayList<>();
         File root = new File(rootDir);
         if (root.exists() && root.isDirectory()) {
-            collectDirectoriesRecursive(root, dirs);
+            collectDirectories(root, dirs);
         }
         return dirs;
     }
 
-    private void collectDirectoriesRecursive(File dir, List<String> dirs) {
+    private void collectDirectories(File dir, List<String> dirs) {
+        // Ignore target and hidden directories
+        // TODO: probably ignore other directories too, like gradle specific directories
         boolean isTargetDir = dir.getName().equals("target");
         boolean isHiddenDir = dir.getName().startsWith(".");
 
@@ -90,13 +105,13 @@ public class MethodCallAnalyzer {
             File[] children = dir.listFiles(File::isDirectory);
             if (children != null) {
                 for (File child : children) {
-                    collectDirectoriesRecursive(child, dirs);
+                    collectDirectories(child, dirs);
                 }
             }
         }
     }
 
-    private void addDirectoriesForAnalyzedFiles(List<String> files, CombinedTypeSolver combinedTypeSolver) {
+    private void addDirectoriesToTypeSolvers(List<String> files, CombinedTypeSolver combinedTypeSolver) {
         Set<String> directories = new HashSet<>();
         for (String filePath : files) {
             File file = new File(filePath);
@@ -113,24 +128,19 @@ public class MethodCallAnalyzer {
         }
     }
 
-    private void resolveMethodCalls(CompilationUnit compilationUnit) {
+    private void resolveMethodCalls(CompilationUnit compilationUnit, Map<String, Integer> methodCallsMap) {
         compilationUnit.findAll(MethodCallExpr.class)
                 .forEach(methodCall -> {
                     try {
-
-                        // TODO debugging why this method call is not resolved
-                        if (methodCall.toString().equalsIgnoreCase("LoggerUtil.debug(getClass(), \"Processing file: {}\", result.file())")) {
-                            return;
-                        }
-
                         String resolvedSignature = methodCall.resolve().getQualifiedSignature();
 
+                        // Ignore calls to java.* methods (for now)
                         if (resolvedSignature.startsWith("java")) {
                             return;
                         }
 
-                        incrementMethodCallCount(resolvedSignature);
-
+                        // Increment method call count
+                        methodCallsMap.merge(resolvedSignature, 1, Integer::sum);
                     } catch (UnsolvedSymbolException e) {
                         String scope = methodCall.getScope().map(Object::toString).orElse("this");
                         LoggerUtil.debug(getClass(), "Failed to resolve: " + scope + "." +
@@ -140,11 +150,5 @@ public class MethodCallAnalyzer {
                                 methodCall, e.getMessage());
                     }
                 });
-    }
-
-    private void incrementMethodCallCount(String resolvedSignature) {
-        methodCallsMap.compute(resolvedSignature, (k, methodCallCount)
-                -> methodCallCount == null ? 1
-                : ++methodCallCount);
     }
 }

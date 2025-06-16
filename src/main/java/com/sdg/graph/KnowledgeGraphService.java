@@ -10,12 +10,15 @@ import com.sdg.llm.LLMService;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.model.InputHandler;
 import com.sdg.model.InputHandler.ProcessingResult;
+import io.reactivex.rxjava3.annotations.NonNull;
+import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +47,9 @@ public class KnowledgeGraphService implements AutoCloseable {
     private final AtomicInteger processedFilesCount = new AtomicInteger(0);
     private static final int BATCH_COMMIT_THRESHOLD = 10; // Commit after every 10 files
     private String systemName;
-    private final Map<String, Integer> methodCallsMap = new HashMap<>();
+    // Records used for method call analysis
+    private record MethodAnalysisResult(Path file, Map<String, Integer> methodCallsMap) {}
+    private record ProcessedMethodAnalysisResult(List<Path> files, Map<String, Integer> methodCallsMap) {}
 
     /**
      * Default constructor initializes the service components.
@@ -89,21 +94,56 @@ public class KnowledgeGraphService implements AutoCloseable {
 
         long start = System.currentTimeMillis();
         ensureBatchSession();
+        MethodCallAnalyzer methodCallAnalyzer = new MethodCallAnalyzer(inputPath);
 
-        // TODO: this logic is temporary while developing a better, nonblocking solution
-        // Collect all Java files and analyze them before any DB insertion
-        List<Path> javaFiles = inputHandler.getAllJavaFiles(inputPath);
-        MethodCallAnalyzer methodCallAnalyzer = new MethodCallAnalyzer();
-        Map<String, Integer> methodCallMap = methodCallAnalyzer.analyze(javaFiles, inputPath);
-        this.methodCallsMap.clear();
-        this.methodCallsMap.putAll(methodCallMap);
+        return inputHandler.processFilesRx(inputPath)
+                .subscribeOn(Schedulers.io())
+                .map(ProcessingResult::file)
+                .observeOn(Schedulers.computation())
+                .flatMap(file -> Observable.fromCallable(() -> countMethodCalls(file, methodCallAnalyzer)))
+                .toList()
+                .map(this::processMethodAnalysisResult)
+                .flatMapObservable(methodAnalysisResult -> {
+                    Map<String, Integer> methodCallsMap = methodAnalysisResult.methodCallsMap();
+                    // Chain file processing as a Completable, then emit ProcessingResult after all files processed
+                    return Observable.fromIterable(methodAnalysisResult.files())
+                            .observeOn(Schedulers.io())
+                            .flatMapCompletable(file -> Completable.fromAction(() -> processFile(file, methodCallsMap)))
+                            .doOnComplete(() -> finalizeProcessing(start))
+                            .doOnError(this::handleError)
+                            .andThen(Observable.just(new ProcessingResult(Path.of(inputPath), 0, "")));
+                });
+    }
 
-        return Observable.fromIterable(javaFiles)
-                .map(file -> new ProcessingResult(file, 0, ""))
-                .observeOn(Schedulers.io())
-                .doOnNext(this::processFile)
-                .doOnError(this::handleError)
-                .doOnComplete(() -> finalizeProcessing(start));
+    /**
+     * Extracts the analyzed files and merges the method call counts received after analyzing method calls
+     * using {@link MethodCallAnalyzer}.
+     *
+     * @param methodAnalysisResults the list of method analysis results to process
+     * @return the processed method analysis result
+     */
+    private ProcessedMethodAnalysisResult processMethodAnalysisResult(@NonNull List<MethodAnalysisResult> methodAnalysisResults) {
+        // Extract files from method analysis results
+        ArrayList<Path> files = new ArrayList<>();
+        methodAnalysisResults.forEach(result -> files.add(result.file));
+
+        // Merge method call counts
+        Map<String, Integer> methodCallsMap = mergeMethodCallCounts(methodAnalysisResults);
+
+        return new ProcessedMethodAnalysisResult(files, methodCallsMap);
+    }
+
+    private static MethodAnalysisResult countMethodCalls(Path file, MethodCallAnalyzer analyzer) {
+        return new MethodAnalysisResult(file, analyzer.analyze(file));
+    }
+
+    private static Map<String, Integer> mergeMethodCallCounts(List<MethodAnalysisResult> results) {
+        Map<String, Integer> mergedCounts = new HashMap<>();
+        for (var result : results) {
+            result.methodCallsMap.forEach((method, count) ->
+                    mergedCounts.merge(method, count, Integer::sum));
+        }
+        return mergedCounts;
     }
 
     /**
@@ -130,12 +170,13 @@ public class KnowledgeGraphService implements AutoCloseable {
         }
     }
 
-    private void processFile(ProcessingResult result) {
+    private void processFile(Path file, Map<String, Integer> methodCallsMap) {
+        ProcessingResult result = new ProcessingResult(file, 0, "");
         LoggerUtil.debug(getClass(), "Processing file: {}", result.file());
         ensureActiveBatchTransaction();
 
         try {
-            insertToGraphDatabase(result.file());
+            insertToGraphDatabase(file, methodCallsMap);
             manageBatchCommits();
         } catch (Exception e) {
             handleFileProcessingError(e);
@@ -148,7 +189,7 @@ public class KnowledgeGraphService implements AutoCloseable {
         }
     }
 
-    private void insertToGraphDatabase(Path filePath) {
+    private void insertToGraphDatabase(Path filePath, Map<String, Integer> methodCallsMap) {
         CompilationUnit cu = parser.parseFile(filePath.toString());
         analyzer.analyzeAndStore(cu, methodCallsMap);
     }
