@@ -43,7 +43,7 @@ class MethodCallAnalyzerTest {
     @BeforeEach
     void setUp() throws Exception {
         List<Path> testFiles = getTestFiles();
-        MethodCallAnalyzer analyzer = new MethodCallAnalyzer("src");
+        MethodCallAnalyzer analyzer = new MethodCallAnalyzer("src", true);
         List<Map<String, Integer>> methodCallsMapList = new ArrayList<>();
         testFiles.forEach(path -> methodCallsMapList.add(analyzer.analyze(path)));
 
