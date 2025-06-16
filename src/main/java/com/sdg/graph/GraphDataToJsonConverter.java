@@ -133,26 +133,6 @@ public class GraphDataToJsonConverter {
         return classNode;
     }
 
-    // TODO: Trying to remove unnecessary properties from @{link ClassNode}. This code will likely be removed later.
-//    /**
-//     * Get class fields and their names, types, and access modifiers for the specified class.
-//     *
-//     * @param className the name of the class
-//     * @param session the Neo4j session
-//     * @param classNode the ClassNode to populate
-//     */
-//    private void getMemberFields(String className, Session session, ClassNode classNode) {
-//        Result fieldsResult = session.run(CypherConstants.GET_CLASS_FIELDS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
-//        while (fieldsResult.hasNext()) {
-//            Record record = fieldsResult.next();
-//            ClassFieldNode fieldNode = new ClassFieldNode();
-//            fieldNode.setName(record.get(CypherConstants.PROP_FIELD_NAME).asString());
-//            fieldNode.setType(record.get(CypherConstants.PROP_FIELD_TYPE).asString());
-//            fieldNode.setVisibility(record.get(CypherConstants.PROP_VISIBILITY).asString());
-//            classNode.getFields().add(fieldNode);
-//        }
-//    }
-
     private void queryMethods(String className, Session session, ClassNode classNode) {
         Result methodsResult = session.run(CypherConstants.GET_CLASS_METHODS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (methodsResult.hasNext()) {
@@ -196,9 +176,7 @@ public class GraphDataToJsonConverter {
     }
 
     /**
-     * Builds a MethodNode with its calls and control flow
-     *
-     * A MethodNode represents a method with its own method calls and control flow.
+     * Builds a MethodNode with its method signature and method calls.
      *
      * @param methodName the name of the method to build
      * @param methodVisibility the visibility of the method
@@ -207,16 +185,32 @@ public class GraphDataToJsonConverter {
      */
     private MethodNode buildMethodNode(String methodName, String methodVisibility, String returnType,
                                        String parameters, Session session) {
+        String methodSignature = createMethodSignatureString(methodName, methodVisibility, returnType, parameters);
         MethodNode methodNode = new MethodNode();
-        methodNode.setName(methodName);
-        methodNode.setVisibility(methodVisibility);
-        methodNode.setReturnType(returnType);
-        methodNode.setParameters(parameters);
+        methodNode.setMethodSignature(methodSignature);
 
         buildMethodCalls(methodName, session, methodNode);
-//        getControlFlow(methodName, session, methodNode);
 
         return methodNode;
+    }
+
+    private static String createMethodSignatureString(String methodName, String methodVisibility, String returnType, String parameters) {
+        // Remove trailing comma from parameters string
+        if (parameters.endsWith(", ")) {
+            parameters = parameters.substring(0, parameters.length() - 2);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(methodVisibility);
+        sb.append(" ");
+        sb.append(returnType);
+        sb.append(" ");
+        sb.append(methodName);
+        sb.append("(");
+        sb.append(parameters);
+        sb.append(")");
+
+        return sb.toString();
     }
 
     private void buildMethodCalls(String methodName, Session session, MethodNode methodNode) {
