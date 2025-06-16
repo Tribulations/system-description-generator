@@ -34,21 +34,15 @@ public class MethodCallAnalyzer {
     private TypeSolver reflectionTypeSolver = new ReflectionTypeSolver();
     private CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
     private JavaSymbolSolver symbolSolver;
+    private boolean isTest = false; // TODO: temporary workaround to include all directories when testing
 
     public MethodCallAnalyzer(final String rootDir) {
-        // Create solvers
-        reflectionTypeSolver = new ReflectionTypeSolver();
-        combinedTypeSolver = new CombinedTypeSolver();
-        combinedTypeSolver.add(reflectionTypeSolver);
+        initTypeSolvers(rootDir);
+    }
 
-        // Add all directories in rootDir as source roots
-        List<String> allDirsInRoot = getAllDirectoriesInRoot(rootDir);
-        addDirectoriesToTypeSolvers(allDirsInRoot, combinedTypeSolver);
-
-        // Create and configure the symbol solver
-        this.symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
-
-        LoggerUtil.debug(getClass(), "Created MethodCallAnalyzer with rootDir: {}", rootDir);
+    public MethodCallAnalyzer(final String rootDir, boolean isTest) {
+        this.isTest = isTest;
+        initTypeSolvers(rootDir);
     }
 
     /**
@@ -82,6 +76,22 @@ public class MethodCallAnalyzer {
         return methodCallsMap;
     }
 
+    private void initTypeSolvers(String rootDir) {
+        // Create solvers
+        reflectionTypeSolver = new ReflectionTypeSolver();
+        combinedTypeSolver = new CombinedTypeSolver();
+        combinedTypeSolver.add(reflectionTypeSolver);
+
+        // Add all directories in rootDir as source roots
+        List<String> allDirsInRoot = getAllDirectoriesInRoot(rootDir);
+        addDirectoriesToTypeSolvers(allDirsInRoot, combinedTypeSolver);
+
+        // Create and configure the symbol solver
+        this.symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
+
+        LoggerUtil.debug(getClass(), "Created MethodCallAnalyzer with rootDir: {}", rootDir);
+    }
+
     /**
      * Returns a list of all directory paths under the given root directory.
      */
@@ -94,13 +104,43 @@ public class MethodCallAnalyzer {
         return dirs;
     }
 
-    private void collectDirectories(File dir, List<String> dirs) {
-        // Ignore target and hidden directories
-        // TODO: probably ignore other directories too, like gradle specific directories
-        boolean isTargetDir = dir.getName().equals("target");
-        boolean isHiddenDir = dir.getName().startsWith(".");
+    private boolean isExcludedDirectory(File dir) {
+        String name = dir.getName();
 
-        if (dir.isDirectory() && !isHiddenDir && !isTargetDir) {
+        if (isTest) {
+            return false;
+        } else {
+            return name.equals("target") ||
+                    name.equals("build") ||
+                    name.equals("out") ||
+                    name.equals("bin") ||
+                    name.equals("node_modules") ||
+                    name.equals(".idea") ||
+                    name.equals(".vscode") ||
+                    name.equals(".settings") ||
+                    name.equals("dist") ||
+                    name.equals("lib") ||
+                    name.equals("logs") ||
+                    name.equals("tmp") ||
+                    name.equals("test-output") ||
+                    name.equals("test") ||
+                    name.equals("resources") ||
+                    name.equals("scripts") ||
+                    name.equals("scala") ||
+                    name.equals("python") ||
+                    name.equals("javascript") ||
+                    name.equals("rust") ||
+                    name.startsWith("."); // hidden dirs
+        }
+    }
+
+    private void collectDirectories(File dir, List<String> dirs) {
+        // Exclude certain directories
+        if (isExcludedDirectory(dir)) {
+            return;
+        }
+
+        if (dir.isDirectory()) {
             dirs.add(dir.getAbsolutePath());
             File[] children = dir.listFiles(File::isDirectory);
             if (children != null) {
@@ -131,23 +171,31 @@ public class MethodCallAnalyzer {
     private void resolveMethodCalls(CompilationUnit compilationUnit, Map<String, Integer> methodCallsMap) {
         compilationUnit.findAll(MethodCallExpr.class)
                 .forEach(methodCall -> {
+                    long start = System.currentTimeMillis(); // TODO for debugging
+
                     try {
                         String resolvedSignature = methodCall.resolve().getQualifiedSignature();
 
-                        // Ignore calls to java.* methods (for now)
+                        // For now, ignore calls to java.* methods (standard library)
                         if (resolvedSignature.startsWith("java")) {
                             return;
                         }
 
                         // Increment method call count
                         methodCallsMap.merge(resolvedSignature, 1, Integer::sum);
+                        LoggerUtil.debug(getClass(), "Resolved method call: {} in {} ms", methodCall,
+                                System.currentTimeMillis() - start);
+                        
                     } catch (UnsolvedSymbolException e) {
                         String scope = methodCall.getScope().map(Object::toString).orElse("this");
                         LoggerUtil.debug(getClass(), "Failed to resolve: " + scope + "." +
                                 methodCall.getNameAsString() + "() - " + e.getMessage());
+                        LoggerUtil.debug(getClass(), "Failed to resolve:: {} in {} ms", methodCall,
+                                System.currentTimeMillis() - start);
+
                     } catch (Exception e) {
-                        LoggerUtil.error(getClass(), "Failed to resolve method call: {} - {}",
-                                methodCall, e.getMessage());
+                        LoggerUtil.debug(getClass(), "Failed to resolve:: {} in {} ms", methodCall,
+                                System.currentTimeMillis() - start);
                     }
                 });
     }
