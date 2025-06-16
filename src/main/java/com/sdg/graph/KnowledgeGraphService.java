@@ -241,7 +241,7 @@ public class KnowledgeGraphService implements AutoCloseable {
 
     private String getKnowledgeGraphAsJson() {
         try {
-            return GraphDataToJsonConverter.getTopLevelNodesAsJSONString(systemName);
+            return GraphDataToJsonConverter.buildTopLevelNodesAsJSONString(systemName);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

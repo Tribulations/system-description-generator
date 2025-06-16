@@ -124,10 +124,10 @@ public class GraphDataToJsonConverter {
         classNode.setName(className);
         classNode.setPackageName(packageName);
 
-        getInheritance(className, session, classNode);
-        getImplementedInterfaces(className, session, classNode);
-        getMethods(className, session, classNode);
-        getImports(className, session, classNode);
+        queryInheritance(className, session, classNode);
+        queryImplementedInterfaces(className, session, classNode);
+        queryMethods(className, session, classNode);
+        queryImports(className, session, classNode);
         // getMemberFields(className, session, classNode);
 
         return classNode;
@@ -153,7 +153,7 @@ public class GraphDataToJsonConverter {
 //        }
 //    }
 
-    private void getMethods(String className, Session session, ClassNode classNode) {
+    private void queryMethods(String className, Session session, ClassNode classNode) {
         Result methodsResult = session.run(CypherConstants.GET_CLASS_METHODS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (methodsResult.hasNext()) {
             Record record = methodsResult.next();
@@ -171,7 +171,7 @@ public class GraphDataToJsonConverter {
         }
     }
 
-    private void getImplementedInterfaces(String className, Session session, ClassNode classNode) {
+    private void queryImplementedInterfaces(String className, Session session, ClassNode classNode) {
         Result interfacesResult = session.run(CypherConstants.GET_CLASS_INTERFACES, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (interfacesResult.hasNext()) {
             String interfaceName = interfacesResult.next().get(CypherConstants.PROP_INTERFACE_NAME).asString();
@@ -179,7 +179,7 @@ public class GraphDataToJsonConverter {
         }
     }
 
-    private void getInheritance(String className, Session session, ClassNode classNode) {
+    private void queryInheritance(String className, Session session, ClassNode classNode) {
         Result inheritanceResult = session.run(CypherConstants.GET_CLASS_INHERITANCE, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (inheritanceResult.hasNext()) {
             String parentName = inheritanceResult.next().get(CypherConstants.PROP_PARENT_NAME).asString();
@@ -187,7 +187,7 @@ public class GraphDataToJsonConverter {
         }
     }
 
-    private void getImports(String className, Session session, ClassNode classNode) {
+    private void queryImports(String className, Session session, ClassNode classNode) {
         Result importsResult = session.run(CypherConstants.GET_CLASS_IMPORTS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (importsResult.hasNext()) {
             String importName = importsResult.next().get(CypherConstants.PROP_IMPORT_NAME).asString();
@@ -213,25 +213,13 @@ public class GraphDataToJsonConverter {
         methodNode.setReturnType(returnType);
         methodNode.setParameters(parameters);
 
-        getMethodCalls(methodName, session, methodNode);
+        buildMethodCalls(methodName, session, methodNode);
 //        getControlFlow(methodName, session, methodNode);
 
         return methodNode;
     }
 
-    // TODO: Trying to remove unnecessary properties from @{link ClassNode}. This code will likely be removed later.
-//    private void getControlFlow(String methodName, Session session, MethodNode methodNode) {
-//        Result controlFlowResult = session.run(CypherConstants.GET_CONTROL_FLOW, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
-//        while (controlFlowResult.hasNext()) {
-//            Record record = controlFlowResult.next();
-//            ControlFlowNode controlFlowNode = new ControlFlowNode();
-//            controlFlowNode.setType(record.get(CypherConstants.PROP_TYPE).asString());
-//            controlFlowNode.setCondition(record.get(CypherConstants.PROP_CONDITION).asString());
-//            methodNode.getControlFlow().add(controlFlowNode);
-//        }
-//    }
-
-    private void getMethodCalls(String methodName, Session session, MethodNode methodNode) {
+    private void buildMethodCalls(String methodName, Session session, MethodNode methodNode) {
         Result callsResult = session.run(CypherConstants.GET_METHOD_CALLS, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
         while (callsResult.hasNext()) {
             String calledMethod = callsResult.next().get(CypherConstants.PROP_CALLED_METHOD).asString();
@@ -239,11 +227,11 @@ public class GraphDataToJsonConverter {
         }
     }
 
-    public static String getTopLevelNodesAsJSONString() throws IOException {
-        return getTopLevelNodesAsJSONString("Unnamed System");
+    public static String buildTopLevelNodesAsJSONString() throws IOException {
+        return buildTopLevelNodesAsJSONString("Unnamed System");
     }
     
-    public static String getTopLevelNodesAsJSONString(String systemName) throws IOException {
+    public static String buildTopLevelNodesAsJSONString(String systemName) throws IOException {
         try (GraphDatabaseOperations dbOps = new GraphDatabaseOperations()) {
             GraphDataToJsonConverter graphDataToJsonConverter = new GraphDataToJsonConverter(dbOps.getDriver());
 
