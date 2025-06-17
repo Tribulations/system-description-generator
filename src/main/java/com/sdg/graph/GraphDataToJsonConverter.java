@@ -2,6 +2,7 @@ package com.sdg.graph;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.sdg.logging.LoggerUtil;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
@@ -29,11 +30,14 @@ import com.sdg.graph.model.MethodCallNode;
  * @see ControlFlowNode
  * @see MethodCallNode
  * @author Joakim Colloz
- * @version 1.0
+ * @version 1.1
  */
 public class GraphDataToJsonConverter {
     private final Driver neo4jDriver;
     private final ObjectMapper objectMapper;
+    
+    // Default character limit for JSON output to not exceed LLM token limit
+    private static final int DEFAULT_JSON_CHAR_LIMIT = 150000;
 
     /**
      * Creates a new GraphDataToJsonConverter with the given Neo4j driver.
@@ -47,45 +51,80 @@ public class GraphDataToJsonConverter {
         objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
+        /**
+         * Extracts the most significant classes from the knowledge graph and converts them to JSON.
+         * Most significant classes are defined as classes with the most relationships (methods, fields, etc.)
+         * Classes are added one by one until the character limit is reached;
+         * if a class causes the limit to be exceeded, it is removed to ensure the final output stays within the limit.
+         *
+         * @param classLimit the maximum number of classes to include
+         * @param systemName the name of the system being analyzed
+         * @param charLimit the maximum number of characters allowed in the JSON output
+         * @return JSON string representation of the most important classes
+         * @throws IOException if conversion to JSON fails
+         */
+        public String jsonifyMostSignificantClasses(int classLimit, String systemName, int charLimit) throws IOException {
+            SystemStructure system = new SystemStructure(systemName);
+
+            try (Session session = neo4jDriver.session()) {
+                Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS,
+                        Map.of(CypherConstants.PROP_LIMIT, classLimit));
+
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    String className = record.get(CypherConstants.PROP_CLASS_NAME).asString();
+                    String packageName = record.get(CypherConstants.PROP_PACKAGE_NAME).asString("<None>");
+
+                    // Build the class node
+                    ClassNode classNode = buildClassNode(className, packageName, session);
+
+                    // Add the class to the system temporarily
+                    system.addClass(classNode);
+
+                    // Check if adding this class made the JSON exceed the character limit
+                    String currentJson = objectMapper.writeValueAsString(system);
+                    if (currentJson.length() > charLimit) {
+                        // Remove the last added class as the JSON exceeds the character limit
+                        system.getClasses().removeLast();
+                        LoggerUtil.info(GraphDataToJsonConverter.class,
+                                "Character limit reached. Stopping at {} classes.", system.getClasses().size());
+                        LoggerUtil.info(GraphDataToJsonConverter.class, "Removed class: {}", className);
+                        break;
+                    }
+                }
+            }
+
+            return objectMapper.writeValueAsString(system);
+        }
+    
     /**
      * Extracts the most significant classes from the knowledge graph and converts them to JSON.
-     * Most significant classes are defined as classes with the most relationships (methods, fields, etc.)
+     * Uses the default character limit.
      *
-     * TODO: This logic likely have to change. Classes with the most relationships
-     * (especially where the relation is to its own class fields as this might not be the most significant).
-     *
-     * @param limit the maximum number of classes to include
+     * @param classLimit the maximum number of classes to include
      * @param systemName the name of the system being analyzed
      * @return JSON string representation of the most important classes
      * @throws IOException if conversion to JSON fails
      */
-    public String jsonifyMostSignificantClasses(int limit, String systemName) throws IOException {
-        SystemStructure system = new SystemStructure(systemName);
-        
-        try (Session session = neo4jDriver.session()) {            
-            Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS,
-                    Map.of(CypherConstants.PROP_LIMIT, limit));
-
-            while (result.hasNext()) {
-                Record record = result.next();
-                String className = record.get(CypherConstants.PROP_CLASS_NAME).asString();
-                String packageName = record.get(CypherConstants.PROP_PACKAGE_NAME).asString("<None>");
-                ClassNode classNode = buildClassNode(className, packageName, session);
-                system.addClass(classNode);
-            }
-        }
-        
-        return objectMapper.writeValueAsString(system);
+    public String jsonifyMostSignificantClasses(int classLimit, String systemName) throws IOException {
+        return jsonifyMostSignificantClasses(classLimit, systemName, DEFAULT_JSON_CHAR_LIMIT);
     }
 
     /**
-     * Overloaded method that uses a default system name
+     * Overloaded method that uses a default system name and default character limit
      */
-    public String jsonifyMostSignificantClasses(int limit) throws IOException {
-        return jsonifyMostSignificantClasses(limit, "Not specified");
+    public String jsonifyMostSignificantClasses(int classLimit) throws IOException {
+        return jsonifyMostSignificantClasses(classLimit, "Not specified", DEFAULT_JSON_CHAR_LIMIT);
+    }
+    
+    /**
+     * Overloaded method that uses a default system name ("Not specified") with specified character limit
+     */
+    public String jsonifyMostSignificantClasses(int classLimit, int charLimit) throws IOException {
+        return jsonifyMostSignificantClasses(classLimit, "Not specified", charLimit);
     }
 
-    public String jsonifyAllClasses(int limit, String systemName) throws IOException {
+    public String jsonifyAllClasses(int classLimit, String systemName) throws IOException {
         SystemStructure system = new SystemStructure(systemName);
 
         try (Session session = neo4jDriver.session()) {
@@ -123,47 +162,34 @@ public class GraphDataToJsonConverter {
         classNode.setName(className);
         classNode.setPackageName(packageName);
 
-        getInheritance(className, session, classNode);
-        getImplementedInterfaces(className, session, classNode);
-        getMethods(className, session, classNode);
-        getImports(className, session, classNode);
+        queryInheritance(className, session, classNode);
+        queryImplementedInterfaces(className, session, classNode);
+        queryMethods(className, session, classNode);
+        queryImports(className, session, classNode);
         // getMemberFields(className, session, classNode);
 
         return classNode;
     }
 
-    // TODO: Trying to remove unnecessary properties from @{link ClassNode}. This code will likely be removed later.
-//    /**
-//     * Get class fields and their names, types, and access modifiers for the specified class.
-//     *
-//     * @param className the name of the class
-//     * @param session the Neo4j session
-//     * @param classNode the ClassNode to populate
-//     */
-//    private void getMemberFields(String className, Session session, ClassNode classNode) {
-//        Result fieldsResult = session.run(CypherConstants.GET_CLASS_FIELDS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
-//        while (fieldsResult.hasNext()) {
-//            Record record = fieldsResult.next();
-//            ClassFieldNode fieldNode = new ClassFieldNode();
-//            fieldNode.setName(record.get(CypherConstants.PROP_FIELD_NAME).asString());
-//            fieldNode.setType(record.get(CypherConstants.PROP_FIELD_TYPE).asString());
-//            fieldNode.setVisibility(record.get(CypherConstants.PROP_VISIBILITY).asString());
-//            classNode.getFields().add(fieldNode);
-//        }
-//    }
-
-    private void getMethods(String className, Session session, ClassNode classNode) {
+    private void queryMethods(String className, Session session, ClassNode classNode) {
         Result methodsResult = session.run(CypherConstants.GET_CLASS_METHODS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (methodsResult.hasNext()) {
             Record record = methodsResult.next();
+
+            // TODO: only include properties that are non-empty
             String methodName = record.get(CypherConstants.PROP_METHOD_NAME).asString();
             String methodVisibility = record.get(CypherConstants.PROP_METHOD_VISIBILITY).asString("unknown");
-            MethodNode methodNode = buildMethodNode(methodName, methodVisibility, session);
+            String methodReturnType = record.get(CypherConstants.PROP_METHOD_RETURN_TYPE).asString("unknown");
+            String methodParameters = record.get(CypherConstants.PROP_METHOD_PARAMETERS).asString("unknown");
+
+            LoggerUtil.debug(getClass(), "Retrieving method: {}, with methodVisibility: {}, methodReturnType: {}, methodParameters: {}", methodName, methodVisibility, methodReturnType, methodParameters);
+
+            MethodNode methodNode = buildMethodNode(methodName, methodVisibility, methodReturnType, methodParameters, session);
             classNode.getMethods().add(methodNode);
         }
     }
 
-    private void getImplementedInterfaces(String className, Session session, ClassNode classNode) {
+    private void queryImplementedInterfaces(String className, Session session, ClassNode classNode) {
         Result interfacesResult = session.run(CypherConstants.GET_CLASS_INTERFACES, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (interfacesResult.hasNext()) {
             String interfaceName = interfacesResult.next().get(CypherConstants.PROP_INTERFACE_NAME).asString();
@@ -171,7 +197,7 @@ public class GraphDataToJsonConverter {
         }
     }
 
-    private void getInheritance(String className, Session session, ClassNode classNode) {
+    private void queryInheritance(String className, Session session, ClassNode classNode) {
         Result inheritanceResult = session.run(CypherConstants.GET_CLASS_INHERITANCE, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (inheritanceResult.hasNext()) {
             String parentName = inheritanceResult.next().get(CypherConstants.PROP_PARENT_NAME).asString();
@@ -179,7 +205,7 @@ public class GraphDataToJsonConverter {
         }
     }
 
-    private void getImports(String className, Session session, ClassNode classNode) {
+    private void queryImports(String className, Session session, ClassNode classNode) {
         Result importsResult = session.run(CypherConstants.GET_CLASS_IMPORTS, Map.of(CypherConstants.PROP_CLASS_NAME, className));
         while (importsResult.hasNext()) {
             String importName = importsResult.next().get(CypherConstants.PROP_IMPORT_NAME).asString();
@@ -188,39 +214,43 @@ public class GraphDataToJsonConverter {
     }
 
     /**
-     * Builds a MethodNode with its calls and control flow
-     *
-     * A MethodNode represents a method with its own method calls and control flow.
+     * Builds a MethodNode with its method signature and method calls.
      *
      * @param methodName the name of the method to build
      * @param methodVisibility the visibility of the method
      * @param session the Neo4j session
      * @return a fully populated MethodNode
      */
-    private MethodNode buildMethodNode(String methodName, String methodVisibility, Session session) {
+    private MethodNode buildMethodNode(String methodName, String methodVisibility, String returnType,
+                                       String parameters, Session session) {
+        String methodSignature = createMethodSignatureString(methodName, methodVisibility, returnType, parameters);
         MethodNode methodNode = new MethodNode();
-        methodNode.setName(methodName);
-        methodNode.setVisibility(methodVisibility);
+        methodNode.setMethodSignature(methodSignature);
 
-        getMethodCalls(methodName, session, methodNode);
-//        getControlFlow(methodName, session, methodNode);
+        buildMethodCalls(methodName, session, methodNode);
 
         return methodNode;
     }
 
-    // TODO: Trying to remove unnecessary properties from @{link ClassNode}. This code will likely be removed later.
-//    private void getControlFlow(String methodName, Session session, MethodNode methodNode) {
-//        Result controlFlowResult = session.run(CypherConstants.GET_CONTROL_FLOW, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
-//        while (controlFlowResult.hasNext()) {
-//            Record record = controlFlowResult.next();
-//            ControlFlowNode controlFlowNode = new ControlFlowNode();
-//            controlFlowNode.setType(record.get(CypherConstants.PROP_TYPE).asString());
-//            controlFlowNode.setCondition(record.get(CypherConstants.PROP_CONDITION).asString());
-//            methodNode.getControlFlow().add(controlFlowNode);
-//        }
-//    }
+    private static String createMethodSignatureString(String methodName, String methodVisibility, String returnType, String parameters) {
+        // Remove trailing comma from parameters string
+        if (parameters.endsWith(", ")) {
+            parameters = parameters.substring(0, parameters.length() - 2);
+        }
 
-    private void getMethodCalls(String methodName, Session session, MethodNode methodNode) {
+        String methodSignature = methodVisibility +
+                " " +
+                returnType +
+                " " +
+                methodName +
+                "(" +
+                parameters +
+                ")";
+
+        return methodSignature;
+    }
+
+    private void buildMethodCalls(String methodName, Session session, MethodNode methodNode) {
         Result callsResult = session.run(CypherConstants.GET_METHOD_CALLS, Map.of(CypherConstants.PROP_METHOD_NAME, methodName));
         while (callsResult.hasNext()) {
             String calledMethod = callsResult.next().get(CypherConstants.PROP_CALLED_METHOD).asString();
@@ -228,16 +258,16 @@ public class GraphDataToJsonConverter {
         }
     }
 
-    public static String getTopLevelNodesAsJSONString() throws IOException {
-        return getTopLevelNodesAsJSONString("Unnamed System");
+    public static String buildTopLevelNodesAsJSONString() throws IOException {
+        return buildTopLevelNodesAsJSONString("Unnamed System");
     }
     
-    public static String getTopLevelNodesAsJSONString(String systemName) throws IOException {
+    public static String buildTopLevelNodesAsJSONString(String systemName) throws IOException {
         try (GraphDatabaseOperations dbOps = new GraphDatabaseOperations()) {
             GraphDataToJsonConverter graphDataToJsonConverter = new GraphDataToJsonConverter(dbOps.getDriver());
 
-            // Get the most significant classes as JSON
-            String json = graphDataToJsonConverter.jsonifyMostSignificantClasses(3, systemName);
+            // Get the most significant classes as JSON with default character limit
+            String json = graphDataToJsonConverter.jsonifyMostSignificantClasses(Integer.MAX_VALUE, systemName);
     
             return json;
         }

@@ -7,6 +7,7 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -135,8 +136,10 @@ class GraphDatabaseOperationsTest {
     void testCreateMethodNodes() {
         // Create class and method nodes
         dbOps.createClassNode(PARENT_CLASS);
-        dbOps.createMethodNode(PARENT_CLASS, "testMethod", "public");
-        dbOps.createMethodNode(PARENT_CLASS, "anotherMethod", "private");
+        dbOps.createMethodNode(PARENT_CLASS, "testMethod", "public", "void",
+                "String, int");
+        dbOps.createMethodNode(PARENT_CLASS, "anotherMethod", "private", "Long",
+               "float, int");
 
         // Commit the transaction to make changes visible to queries
         dbOps.commitBatchTransaction();
@@ -249,8 +252,10 @@ class GraphDatabaseOperationsTest {
         dbOps.createInterfaceImplementation(PARENT_CLASS, TEST_INTERFACE);
         
         // Add methods to both classes
-        dbOps.createMethodNode(PARENT_CLASS, "parentMethod", "public");
-        dbOps.createMethodNode(CHILD_CLASS, "childMethod", "private");
+        dbOps.createMethodNode(PARENT_CLASS, "parentMethod", "public", "JsonNode",
+                "String, double");
+        dbOps.createMethodNode(CHILD_CLASS, "childMethod", "private", "String",
+                "String, float");
         
         // Add fields
         dbOps.createClassField(PARENT_CLASS, "parentField", "String", "protected");

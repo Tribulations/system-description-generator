@@ -14,6 +14,10 @@ public class ParentClass implements TestInterface {
     @Override
     public void doSomething() {
         System.out.println("Parent doing something");
+
+        // Only called methods gets insertet to the knowledge graph
+        ParentClass parentClass = new ParentClass("parentField");
+        parentClass.getParentField();
     }
     
     public String getParentField() {

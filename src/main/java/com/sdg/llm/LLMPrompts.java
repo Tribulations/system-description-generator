@@ -43,6 +43,8 @@ public class LLMPrompts {
                 1. **System Purpose:** Clearly state the system's primary function.
                 2. **Key Components & Responsibilities:** Briefly describe the major components and their roles.
                 3. **Core Technologies & Dependencies:** Explicitly confirm the technologies used and dependencies.
+                4. **Architecture:** Provide a high-level overview of the system's architecture.
+                5. **Data Flow:** Describe the flow of data between components.
                 **Response Guidelines:**
                 - Keep the summary **brief yet informative**.
                 - Use **direct and factual statements** instead of speculation.

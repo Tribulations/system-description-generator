@@ -4,17 +4,22 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.sdg.ast.ASTAnalyzer;
 import com.sdg.ast.ASTAnalyzerConfig;
 import com.sdg.ast.JavaFileParser;
+import com.sdg.ast.MethodAnalysisHelper;
+import com.sdg.ast.MethodCallAnalyzer;
 import com.sdg.llm.GeminiApiClient;
 import com.sdg.llm.LLMService;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.model.InputHandler;
 import com.sdg.model.InputHandler.ProcessingResult;
+import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,6 +45,7 @@ public class KnowledgeGraphService implements AutoCloseable {
     private final AtomicInteger processedFilesCount = new AtomicInteger(0);
     private static final int BATCH_COMMIT_THRESHOLD = 10; // Commit after every 10 files
     private String systemName;
+    private final MethodAnalysisHelper methodAnalysisHelper;
 
     /**
      * Default constructor initializes the service components.
@@ -64,6 +70,38 @@ public class KnowledgeGraphService implements AutoCloseable {
         this.visualizer = new GraphVisualizer();
         this.inputHandler = new InputHandler();  // Initialize InputHandler
         this.llmService = new LLMService(new GeminiApiClient());
+        this.methodAnalysisHelper = new MethodAnalysisHelper();
+    }
+    
+    /**
+     * Constructor accepting a {@link ASTAnalyzerConfig} and a method filter percentage.
+     *
+     * @param config the configuration for the ASTAnalyzer
+     * @param methodFilterPercentage percentage of methods to filter out (0.0-1.0)
+     */
+    public KnowledgeGraphService(final ASTAnalyzerConfig config, double methodFilterPercentage) {
+        this(config);
+        this.methodAnalysisHelper.setMethodFilterPercentage(methodFilterPercentage);
+    }
+    
+    /**
+     * Sets the percentage of methods to filter out from each class.
+     * The filtering keeps methods with the most calls and removes the rest.
+     *
+     * @param percentage value between 0.0 (no filtering) and 1.0 (filter all methods)
+     * @throws IllegalArgumentException if percentage is not between 0.0 and 1.0
+     */
+    public void setMethodFilterPercentage(double percentage) {
+        methodAnalysisHelper.setMethodFilterPercentage(percentage);
+    }
+    
+    /**
+     * Gets the current method filter percentage.
+     *
+     * @return the current method filter percentage (0.0-1.0)
+     */
+    public double getMethodFilterPercentage() {
+        return methodAnalysisHelper.getMethodFilterPercentage();
     }
 
     /**
@@ -84,12 +122,25 @@ public class KnowledgeGraphService implements AutoCloseable {
 
         long start = System.currentTimeMillis();
         ensureBatchSession();
+        MethodCallAnalyzer methodCallAnalyzer = new MethodCallAnalyzer(inputPath);
 
         return inputHandler.processFilesRx(inputPath)
-                .observeOn(Schedulers.io())
-                .doOnNext(this::processFile)
-                .doOnError(this::handleError)
-                .doOnComplete(() -> finalizeProcessing(start));
+                .subscribeOn(Schedulers.io())
+                .map(ProcessingResult::file)
+                .observeOn(Schedulers.computation())
+                .flatMap(file -> Observable.fromCallable(() -> MethodAnalysisHelper.countMethodCalls(file, methodCallAnalyzer)))
+                .toList()
+                .map(methodAnalysisHelper::processMethodAnalysisResult)
+                .flatMapObservable(methodAnalysisResult -> {
+                    Map<String, Integer> methodCallsMap = methodAnalysisResult.methodCallsMap();
+                    // Chain file processing as a Completable, then emit ProcessingResult after all files processed
+                    return Observable.fromIterable(methodAnalysisResult.files())
+                            .observeOn(Schedulers.io())
+                            .flatMapCompletable(file -> Completable.fromAction(() -> processFile(file, methodCallsMap)))
+                            .doOnComplete(() -> finalizeProcessing(start))
+                            .doOnError(this::handleError)
+                            .andThen(Observable.just(new ProcessingResult(Path.of(inputPath), 0, "")));
+                });
     }
 
     /**
@@ -116,12 +167,13 @@ public class KnowledgeGraphService implements AutoCloseable {
         }
     }
 
-    private void processFile(ProcessingResult result) {
+    private void processFile(Path file, Map<String, Integer> methodCallsMap) {
+        ProcessingResult result = new ProcessingResult(file, 0, "");
         LoggerUtil.debug(getClass(), "Processing file: {}", result.file());
         ensureActiveBatchTransaction();
 
         try {
-            insertToGraphDatabase(result.file());
+            insertToGraphDatabase(file, methodCallsMap);
             manageBatchCommits();
         } catch (Exception e) {
             handleFileProcessingError(e);
@@ -134,9 +186,9 @@ public class KnowledgeGraphService implements AutoCloseable {
         }
     }
 
-    private void insertToGraphDatabase(Path filePath) {
+    private void insertToGraphDatabase(Path filePath, Map<String, Integer> methodCallsMap) {
         CompilationUnit cu = parser.parseFile(filePath.toString());
-        analyzer.analyzeAndStore(cu);
+        analyzer.analyzeAndStore(cu, methodCallsMap);
     }
 
     private synchronized void manageBatchCommits() {
@@ -186,7 +238,7 @@ public class KnowledgeGraphService implements AutoCloseable {
 
     private String getKnowledgeGraphAsJson() {
         try {
-            return GraphDataToJsonConverter.getTopLevelNodesAsJSONString(systemName);
+            return GraphDataToJsonConverter.buildTopLevelNodesAsJSONString(systemName);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

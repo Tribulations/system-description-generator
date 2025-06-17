@@ -22,6 +22,7 @@ import java.util.stream.Stream;
  * and cloning Git repositories to extract Java source files.
  *
  * @author Suraj Karki
+ * @author Joakim Colloz
  */
 public class InputHandler {
     private String systemName = "Not specified";
@@ -77,6 +78,7 @@ public class InputHandler {
             if (repoPath != null) {
                 javaFiles.addAll(collectJavaFiles(repoPath));
             }
+
             return javaFiles;
         }
 
@@ -90,6 +92,7 @@ public class InputHandler {
         } else {
             LoggerUtil.error(getClass(), "Invalid input path: {}. Expected a Java file, directory, or Git repository.", inputPath);
         }
+
         return javaFiles;
     }
 
@@ -232,5 +235,38 @@ public class InputHandler {
         }
 
         return systemName;
+    }
+
+    /**
+     * Collect all Java files from the input path.
+     * @param inputPath The path to a file, directory, or Git repository.
+     * @return A list of Java file paths.
+     */
+    public List<Path> getAllJavaFiles(String inputPath) {
+        if (inputPath == null || inputPath.isBlank()) {
+            LoggerUtil.error(getClass(), "Provided input path is null or empty. Aborting processing.");
+            return new ArrayList<>();
+        }
+        List<Path> javaFiles = new ArrayList<>();
+        // Check if input is a Git repository URL
+        if (inputPath.startsWith("https://") || inputPath.startsWith("git@")) {
+            LoggerUtil.info(getClass(), "Detected Git repository. Cloning from: {}", inputPath);
+            Path repoPath = cloneGitRepository(inputPath);
+            if (repoPath != null) {
+                javaFiles.addAll(collectJavaFiles(repoPath));
+            }
+            return javaFiles;
+        }
+        Path path = Paths.get(inputPath);
+        if (Files.isDirectory(path)) {
+            LoggerUtil.debug(getClass(), "Processing directory: {}", inputPath);
+            javaFiles.addAll(collectJavaFiles(path));
+        } else if (Files.isRegularFile(path) && inputPath.endsWith(".java")) {
+            LoggerUtil.debug(getClass(), "Processing single Java file: {}", inputPath);
+            javaFiles.add(path);
+        } else {
+            LoggerUtil.error(getClass(), "Invalid input path: {}. Expected a Java file, directory, or Git repository.", inputPath);
+        }
+        return javaFiles;
     }
 }
