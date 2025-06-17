@@ -4,13 +4,13 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.sdg.ast.ASTAnalyzer;
 import com.sdg.ast.ASTAnalyzerConfig;
 import com.sdg.ast.JavaFileParser;
+import com.sdg.ast.MethodAnalysisHelper;
 import com.sdg.ast.MethodCallAnalyzer;
 import com.sdg.llm.GeminiApiClient;
 import com.sdg.llm.LLMService;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.model.InputHandler;
 import com.sdg.model.InputHandler.ProcessingResult;
-import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
@@ -19,8 +19,6 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,9 +45,7 @@ public class KnowledgeGraphService implements AutoCloseable {
     private final AtomicInteger processedFilesCount = new AtomicInteger(0);
     private static final int BATCH_COMMIT_THRESHOLD = 10; // Commit after every 10 files
     private String systemName;
-    // Records used for method call analysis
-    private record MethodAnalysisResult(Path file, Map<String, Integer> methodCallsMap) {}
-    private record ProcessedMethodAnalysisResult(List<Path> files, Map<String, Integer> methodCallsMap) {}
+    private final MethodAnalysisHelper methodAnalysisHelper;
 
     /**
      * Default constructor initializes the service components.
@@ -74,6 +70,38 @@ public class KnowledgeGraphService implements AutoCloseable {
         this.visualizer = new GraphVisualizer();
         this.inputHandler = new InputHandler();  // Initialize InputHandler
         this.llmService = new LLMService(new GeminiApiClient());
+        this.methodAnalysisHelper = new MethodAnalysisHelper();
+    }
+    
+    /**
+     * Constructor accepting a {@link ASTAnalyzerConfig} and a method filter percentage.
+     *
+     * @param config the configuration for the ASTAnalyzer
+     * @param methodFilterPercentage percentage of methods to filter out (0.0-1.0)
+     */
+    public KnowledgeGraphService(final ASTAnalyzerConfig config, double methodFilterPercentage) {
+        this(config);
+        this.methodAnalysisHelper.setMethodFilterPercentage(methodFilterPercentage);
+    }
+    
+    /**
+     * Sets the percentage of methods to filter out from each class.
+     * The filtering keeps methods with the most calls and removes the rest.
+     *
+     * @param percentage value between 0.0 (no filtering) and 1.0 (filter all methods)
+     * @throws IllegalArgumentException if percentage is not between 0.0 and 1.0
+     */
+    public void setMethodFilterPercentage(double percentage) {
+        methodAnalysisHelper.setMethodFilterPercentage(percentage);
+    }
+    
+    /**
+     * Gets the current method filter percentage.
+     *
+     * @return the current method filter percentage (0.0-1.0)
+     */
+    public double getMethodFilterPercentage() {
+        return methodAnalysisHelper.getMethodFilterPercentage();
     }
 
     /**
@@ -100,9 +128,9 @@ public class KnowledgeGraphService implements AutoCloseable {
                 .subscribeOn(Schedulers.io())
                 .map(ProcessingResult::file)
                 .observeOn(Schedulers.computation())
-                .flatMap(file -> Observable.fromCallable(() -> countMethodCalls(file, methodCallAnalyzer)))
+                .flatMap(file -> Observable.fromCallable(() -> MethodAnalysisHelper.countMethodCalls(file, methodCallAnalyzer)))
                 .toList()
-                .map(this::processMethodAnalysisResult)
+                .map(methodAnalysisHelper::processMethodAnalysisResult)
                 .flatMapObservable(methodAnalysisResult -> {
                     Map<String, Integer> methodCallsMap = methodAnalysisResult.methodCallsMap();
                     // Chain file processing as a Completable, then emit ProcessingResult after all files processed
@@ -113,37 +141,6 @@ public class KnowledgeGraphService implements AutoCloseable {
                             .doOnError(this::handleError)
                             .andThen(Observable.just(new ProcessingResult(Path.of(inputPath), 0, "")));
                 });
-    }
-
-    /**
-     * Extracts the analyzed files and merges the method call counts received after analyzing method calls
-     * using {@link MethodCallAnalyzer}.
-     *
-     * @param methodAnalysisResults the list of method analysis results to process
-     * @return the processed method analysis result
-     */
-    private ProcessedMethodAnalysisResult processMethodAnalysisResult(@NonNull List<MethodAnalysisResult> methodAnalysisResults) {
-        // Extract files from method analysis results
-        ArrayList<Path> files = new ArrayList<>();
-        methodAnalysisResults.forEach(result -> files.add(result.file));
-
-        // Merge method call counts
-        Map<String, Integer> methodCallsMap = mergeMethodCallCounts(methodAnalysisResults);
-
-        return new ProcessedMethodAnalysisResult(files, methodCallsMap);
-    }
-
-    private static MethodAnalysisResult countMethodCalls(Path file, MethodCallAnalyzer analyzer) {
-        return new MethodAnalysisResult(file, analyzer.analyze(file));
-    }
-
-    private static Map<String, Integer> mergeMethodCallCounts(List<MethodAnalysisResult> results) {
-        Map<String, Integer> mergedCounts = new HashMap<>();
-        for (var result : results) {
-            result.methodCallsMap.forEach((method, count) ->
-                    mergedCounts.merge(method, count, Integer::sum));
-        }
-        return mergedCounts;
     }
 
     /**
