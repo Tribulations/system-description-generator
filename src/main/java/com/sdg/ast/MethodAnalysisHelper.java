@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Helper class for method analysis operations on results received from {@link MethodCallAnalyzer}.
@@ -123,19 +122,8 @@ public class MethodAnalysisHelper {
      * @return filtered method calls map
      */
     public Map<String, Integer> filterMethodsByCallFrequency(Map<String, Integer> methodCallsMap) {
-        // Group methods by class
-        Map<String, Map<String, Integer>> methodsByClass = new HashMap<>();
-        
-        for (Map.Entry<String, Integer> entry : methodCallsMap.entrySet()) {
-            String methodSignature = entry.getKey();
-            String className = extractClassName(methodSignature);
-            
-            if (!methodsByClass.containsKey(className)) {
-                methodsByClass.put(className, new HashMap<>());
-            }
-            methodsByClass.get(className).put(methodSignature, entry.getValue());
-        }
-        
+        Map<String, Map<String, Integer>> methodsByClass = groupMethodsByClass(methodCallsMap);
+
         // Filter methods for each class
         Map<String, Integer> filteredMethodCalls = new HashMap<>();
         for (Map.Entry<String, Map<String, Integer>> classEntry : methodsByClass.entrySet()) {
@@ -152,7 +140,7 @@ public class MethodAnalysisHelper {
             // Sort methods by call count (descending) and keep top methods
             List<Map.Entry<String, Integer>> sortedMethods = classMethods.entrySet().stream()
                     .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                    .collect(Collectors.toList());
+                    .toList();
             
             // Keep the top methods based on call count
             for (int i = 0; i < methodsToKeep && i < sortedMethods.size(); i++) {
@@ -165,6 +153,21 @@ public class MethodAnalysisHelper {
                 methodCallsMap.size(), filteredMethodCalls.size());
         
         return filteredMethodCalls;
+    }
+
+    private Map<String, Map<String, Integer>> groupMethodsByClass(Map<String, Integer> methodCallsMap) {
+        Map<String, Map<String, Integer>> methodsByClass = new HashMap<>();
+
+        for (Map.Entry<String, Integer> entry : methodCallsMap.entrySet()) {
+            String methodSignature = entry.getKey();
+            String className = extractClassName(methodSignature);
+
+            if (!methodsByClass.containsKey(className)) {
+                methodsByClass.put(className, new HashMap<>());
+            }
+            methodsByClass.get(className).put(methodSignature, entry.getValue());
+        }
+        return methodsByClass;
     }
 
     /**
