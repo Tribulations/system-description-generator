@@ -30,11 +30,14 @@ import com.sdg.graph.model.MethodCallNode;
  * @see ControlFlowNode
  * @see MethodCallNode
  * @author Joakim Colloz
- * @version 1.0
+ * @version 1.1
  */
 public class GraphDataToJsonConverter {
     private final Driver neo4jDriver;
     private final ObjectMapper objectMapper;
+    
+    // Default character limit for JSON output to not exceed LLM token limit
+    private static final int DEFAULT_JSON_CHAR_LIMIT = 150000;
 
     /**
      * Creates a new GraphDataToJsonConverter with the given Neo4j driver.
@@ -48,45 +51,80 @@ public class GraphDataToJsonConverter {
         objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
+        /**
+         * Extracts the most significant classes from the knowledge graph and converts them to JSON.
+         * Most significant classes are defined as classes with the most relationships (methods, fields, etc.)
+         * Classes are added one by one until the character limit is reached;
+         * if a class causes the limit to be exceeded, it is removed to ensure the final output stays within the limit.
+         *
+         * @param classLimit the maximum number of classes to include
+         * @param systemName the name of the system being analyzed
+         * @param charLimit the maximum number of characters allowed in the JSON output
+         * @return JSON string representation of the most important classes
+         * @throws IOException if conversion to JSON fails
+         */
+        public String jsonifyMostSignificantClasses(int classLimit, String systemName, int charLimit) throws IOException {
+            SystemStructure system = new SystemStructure(systemName);
+
+            try (Session session = neo4jDriver.session()) {
+                Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS,
+                        Map.of(CypherConstants.PROP_LIMIT, classLimit));
+
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    String className = record.get(CypherConstants.PROP_CLASS_NAME).asString();
+                    String packageName = record.get(CypherConstants.PROP_PACKAGE_NAME).asString("<None>");
+
+                    // Build the class node
+                    ClassNode classNode = buildClassNode(className, packageName, session);
+
+                    // Add the class to the system temporarily
+                    system.addClass(classNode);
+
+                    // Check if adding this class made the JSON exceed the character limit
+                    String currentJson = objectMapper.writeValueAsString(system);
+                    if (currentJson.length() > charLimit) {
+                        // Remove the last added class as the JSON exceeds the character limit
+                        system.getClasses().removeLast();
+                        LoggerUtil.info(GraphDataToJsonConverter.class,
+                                "Character limit reached. Stopping at {} classes.", system.getClasses().size());
+                        LoggerUtil.info(GraphDataToJsonConverter.class, "Removed class: {}", className);
+                        break;
+                    }
+                }
+            }
+
+            return objectMapper.writeValueAsString(system);
+        }
+    
     /**
      * Extracts the most significant classes from the knowledge graph and converts them to JSON.
-     * Most significant classes are defined as classes with the most relationships (methods, fields, etc.)
+     * Uses the default character limit.
      *
-     * TODO: This logic likely have to change. Classes with the most relationships
-     * (especially where the relation is to its own class fields as this might not be the most significant).
-     *
-     * @param limit the maximum number of classes to include
+     * @param classLimit the maximum number of classes to include
      * @param systemName the name of the system being analyzed
      * @return JSON string representation of the most important classes
      * @throws IOException if conversion to JSON fails
      */
-    public String jsonifyMostSignificantClasses(int limit, String systemName) throws IOException {
-        SystemStructure system = new SystemStructure(systemName);
-        
-        try (Session session = neo4jDriver.session()) {            
-            Result result = session.run(CypherConstants.FIND_CLASSES_WITH_MOST_RELATIONSHIPS,
-                    Map.of(CypherConstants.PROP_LIMIT, limit));
-
-            while (result.hasNext()) {
-                Record record = result.next();
-                String className = record.get(CypherConstants.PROP_CLASS_NAME).asString();
-                String packageName = record.get(CypherConstants.PROP_PACKAGE_NAME).asString("<None>");
-                ClassNode classNode = buildClassNode(className, packageName, session);
-                system.addClass(classNode);
-            }
-        }
-        
-        return objectMapper.writeValueAsString(system);
+    public String jsonifyMostSignificantClasses(int classLimit, String systemName) throws IOException {
+        return jsonifyMostSignificantClasses(classLimit, systemName, DEFAULT_JSON_CHAR_LIMIT);
     }
 
     /**
-     * Overloaded method that uses a default system name
+     * Overloaded method that uses a default system name and default character limit
      */
-    public String jsonifyMostSignificantClasses(int limit) throws IOException {
-        return jsonifyMostSignificantClasses(limit, "Not specified");
+    public String jsonifyMostSignificantClasses(int classLimit) throws IOException {
+        return jsonifyMostSignificantClasses(classLimit, "Not specified", DEFAULT_JSON_CHAR_LIMIT);
+    }
+    
+    /**
+     * Overloaded method that uses a default system name ("Not specified") with specified character limit
+     */
+    public String jsonifyMostSignificantClasses(int classLimit, int charLimit) throws IOException {
+        return jsonifyMostSignificantClasses(classLimit, "Not specified", charLimit);
     }
 
-    public String jsonifyAllClasses(int limit, String systemName) throws IOException {
+    public String jsonifyAllClasses(int classLimit, String systemName) throws IOException {
         SystemStructure system = new SystemStructure(systemName);
 
         try (Session session = neo4jDriver.session()) {
@@ -200,17 +238,16 @@ public class GraphDataToJsonConverter {
             parameters = parameters.substring(0, parameters.length() - 2);
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(methodVisibility);
-        sb.append(" ");
-        sb.append(returnType);
-        sb.append(" ");
-        sb.append(methodName);
-        sb.append("(");
-        sb.append(parameters);
-        sb.append(")");
+        String methodSignature = methodVisibility +
+                " " +
+                returnType +
+                " " +
+                methodName +
+                "(" +
+                parameters +
+                ")";
 
-        return sb.toString();
+        return methodSignature;
     }
 
     private void buildMethodCalls(String methodName, Session session, MethodNode methodNode) {
@@ -229,8 +266,8 @@ public class GraphDataToJsonConverter {
         try (GraphDatabaseOperations dbOps = new GraphDatabaseOperations()) {
             GraphDataToJsonConverter graphDataToJsonConverter = new GraphDataToJsonConverter(dbOps.getDriver());
 
-            // Get the most significant classes as JSON
-            String json = graphDataToJsonConverter.jsonifyMostSignificantClasses(3, systemName);
+            // Get the most significant classes as JSON with default character limit
+            String json = graphDataToJsonConverter.jsonifyMostSignificantClasses(Integer.MAX_VALUE, systemName);
     
             return json;
         }
