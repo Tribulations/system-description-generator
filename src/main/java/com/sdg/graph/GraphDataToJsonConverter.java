@@ -9,6 +9,9 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.Driver;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Map;
 
 import com.sdg.graph.model.ClassNode;
@@ -30,7 +33,7 @@ import com.sdg.graph.model.MethodCallNode;
  * @see ControlFlowNode
  * @see MethodCallNode
  * @author Joakim Colloz
- * @version 1.1
+ * @version 1.2
  */
 public class GraphDataToJsonConverter {
     private final Driver neo4jDriver;
@@ -94,7 +97,9 @@ public class GraphDataToJsonConverter {
                 }
             }
 
-            return objectMapper.writeValueAsString(system);
+            String json = objectMapper.writeValueAsString(system);
+            writeJsonToFile(json);
+            return json;
         }
     
     /**
@@ -255,6 +260,20 @@ public class GraphDataToJsonConverter {
         while (callsResult.hasNext()) {
             String calledMethod = callsResult.next().get(CypherConstants.PROP_CALLED_METHOD).asString();
             methodNode.getMethodCalls().add(new MethodCallNode(calledMethod));
+        }
+    }
+
+    /**
+     * Writes the given JSON string to a file.
+     * @param json The JSON string to write.
+     */
+    private void writeJsonToFile(String json) {
+        final String filename = "graph_output.txt";
+
+        try {
+            Files.writeString(Paths.get(filename), json, StandardOpenOption.CREATE);
+        } catch (IOException e) {
+            LoggerUtil.error(getClass(), "Failed to write JSON to file: " + filename, e);
         }
     }
 
