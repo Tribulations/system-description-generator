@@ -128,7 +128,15 @@ public class KnowledgeGraphService implements AutoCloseable {
                 .subscribeOn(Schedulers.io())
                 .map(ProcessingResult::file)
                 .observeOn(Schedulers.computation())
-                .flatMap(file -> Observable.fromCallable(() -> MethodAnalysisHelper.countMethodCalls(file, methodCallAnalyzer)))
+                .flatMap(file -> Observable.fromCallable(() -> {
+                    try {
+                        LoggerUtil.debug(getClass(), "Processing file: {}", file);
+                        return MethodAnalysisHelper.countMethodCalls(file, methodCallAnalyzer);
+                    } catch (StackOverflowError e) {
+                        LoggerUtil.error(getClass(),"StackOverflow when processing file: {}", file, e);
+                        throw e;
+                    }
+                }))
                 .toList()
                 .map(methodAnalysisHelper::processMethodAnalysisResult)
                 .flatMapObservable(methodAnalysisResult -> {
