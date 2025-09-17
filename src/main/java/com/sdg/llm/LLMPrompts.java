@@ -12,27 +12,7 @@ public class LLMPrompts {
         throw new IllegalStateException("Cannot instantiate this class");
     }
 
-    public static final String promptTemplate1 = """
-                Given the following knowledge graph in JSON format representing a component in a software system:
-
-                %s
-
-                Provide a short high-level description of this component, explaining:
-                1. What other components it interacts with
-                2. What dependencies it has
-                3. Its likely overall responsibility in the system architecture
-                """;
-
-    public static final String promptTemplate2 = """
-                Given the following knowledge graph in JSON format representing a software system at a high level:
-
-                %s
-
-                Provide a short high-level description of this systems structure and behavior.
-                """;
-
-
-    public static final String promptTemplate3 = """
+    public static final String PROMPT_TEMPLATE = """
                 Given the following knowledge graph in JSON format representing Java software system at a high level:
 
                 %s

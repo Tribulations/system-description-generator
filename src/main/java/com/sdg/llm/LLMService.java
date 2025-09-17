@@ -34,10 +34,10 @@ public class LLMService {
      */
     public CompletableFuture<String> generateHighLevelDescriptionAsync(String knowledgeGraphAsJson) {
         LoggerUtil.info(getClass(), "Generating high-level description async for knowledge graph: {}, using prompt: {}",
-                knowledgeGraphAsJson, LLMPrompts.promptTemplate3);
+                knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
 
         try {
-            String prompt = LLMPrompts.createPrompt(LLMPrompts.promptTemplate3, knowledgeGraphAsJson);
+            String prompt = LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson);
             return client.sendRequestAsync(prompt, TEMPERATURE, MAX_TOKENS)
                     .thenApply(client::getAnswer)
                     .thenApply(answer -> {
@@ -59,11 +59,11 @@ public class LLMService {
      */
     public String generateHighLevelDescription(String knowledgeGraphAsJson) {
         LoggerUtil.info(getClass(), "Generating high-level description for knowledge graph: {}, using prompt: {}",
-                knowledgeGraphAsJson, LLMPrompts.promptTemplate3);
+                knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
 
         String response;
         try {
-            String prompt = LLMPrompts.createPrompt(LLMPrompts.promptTemplate3, knowledgeGraphAsJson);
+            String prompt = LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson);
             response = client.sendRequest(prompt, TEMPERATURE, MAX_TOKENS);
         } catch (Exception e) {
             throw new RuntimeException(e);
