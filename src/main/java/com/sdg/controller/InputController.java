@@ -132,8 +132,7 @@ public class InputController {
                         .subscribe(
                                 response -> {
                                     view.clearLoadingIndicator();
-                                    updateOutput("\nSystem " +
-                                            "Description: " + response);
+                                    updateOutput("\nSystem Description: " + response);
                                 },
                                 this::handleLLMProcessingError
                         )
