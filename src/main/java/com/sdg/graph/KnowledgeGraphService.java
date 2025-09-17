@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - {@link JavaFileParser}
  * - {@link ASTAnalyzer}
  * - {@link GraphDatabaseOperations}
- * - {@link GraphVisualizer}
  *
  * @author Joakim Colloz
  * @version 1.0
@@ -39,7 +38,6 @@ public class KnowledgeGraphService implements AutoCloseable {
     private final JavaFileParser parser;
     private final GraphDatabaseOperations dbOps;
     private final ASTAnalyzer analyzer;
-    private final GraphVisualizer visualizer;
     private final InputHandler inputHandler;
     private final LLMService llmService;
     private final AtomicInteger processedFilesCount = new AtomicInteger(0);
@@ -67,7 +65,6 @@ public class KnowledgeGraphService implements AutoCloseable {
 
         this.parser = new JavaFileParser();
         this.analyzer = new ASTAnalyzer(dbOps, config);
-        this.visualizer = new GraphVisualizer();
         this.inputHandler = new InputHandler();  // Initialize InputHandler
         this.llmService = new LLMService(new GeminiApiClient());
         this.methodAnalysisHelper = new MethodAnalysisHelper();
