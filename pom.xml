@@ -86,6 +86,13 @@
             <artifactId>jackson-databind</artifactId>
             <version>2.16.1</version>
         </dependency>
+        <!-- Diagram generation-->
+        <!-- https://mvnrepository.com/artifact/net.sourceforge.plantuml/plantuml-mit -->
+        <dependency>
+            <groupId>net.sourceforge.plantuml</groupId>
+            <artifactId>plantuml-mit</artifactId>
+            <version>1.2025.7</version>
+        </dependency>
     </dependencies>
 
     <build>
