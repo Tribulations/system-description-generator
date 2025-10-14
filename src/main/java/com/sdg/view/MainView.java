@@ -1,11 +1,14 @@
 package com.sdg.view;
 
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JProgressBar;
+import com.sdg.diagrams.DiagramTabManager;
+
+import javax.swing.JTabbedPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JButton;
-import javax.swing.JTextArea;
+import javax.swing.JLabel;
+import javax.swing.JProgressBar;
+import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
@@ -28,8 +31,9 @@ import java.awt.event.FocusEvent;
  * It allows users to select an input file and process it while displaying the results.
  *
  * @author Suraj Karki
+ * @author Joakim Colloz
  */
-public class InputView extends JFrame {
+public class MainView extends JFrame {
     public final JTextField inputField;
     private final JButton browseButton;
     private final JButton processButton;
@@ -37,11 +41,12 @@ public class InputView extends JFrame {
     private final JTextArea outputArea;
     private final JProgressBar progressBar;
     private final JLabel loadingLabel;
+    private final JTabbedPane tabbedPane;
 
     /**
      * Constructs the InputView UI, setting up layout and components.
      */
-    public InputView() {
+    public MainView() {
         setTitle("System Description Generator (SDG)");
         setSize(800, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -107,6 +112,9 @@ public class InputView extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(outputArea);
 
+        tabbedPane = new JTabbedPane();
+        tabbedPane.add("Textual Description", scrollPane);
+
         // Loading Indicator Panel
         JPanel loadingPanel = new JPanel();
         progressBar = new JProgressBar();
@@ -121,12 +129,16 @@ public class InputView extends JFrame {
 
         // Add Components
         add(inputPanel, BorderLayout.NORTH);
-        add(scrollPane, BorderLayout.CENTER);
+        add(tabbedPane, BorderLayout.CENTER);
         add(loadingPanel, BorderLayout.SOUTH);
 
         descButton.setEnabled(false);
 
         setVisible(true);
+    }
+
+    public void addDiagramToTabbedPane(String tabTitle, DiagramTabManager diagramTabManager) {
+        tabbedPane.add(tabTitle, diagramTabManager);
     }
 
     /**
