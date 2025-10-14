@@ -18,7 +18,8 @@ public class PlantUMLValidator {
             plantUmlReader.outputImage(baos, errorFormatOption);
 
             if (baos.toString().contains("Error")) {
-                LoggerUtil.info(PlantUMLValidator.class, "Syntax Error for plant uml:\n{}", plantUMLSource);
+                LoggerUtil.info(PlantUMLValidator.class,
+                        "PlantUML Syntax Error with error message {} for plant uml:\n{}", baos.toString(), plantUMLSource);
                 throw new RuntimeException(baos.toString());
             }
 
