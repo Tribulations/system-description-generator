@@ -66,13 +66,13 @@ public class LLMPrompts {
             """;
 
     /**
-     * Creates a prompt based on the provided prompt template and knowledge graph JSON.
+     * Creates a prompt based on the provided prompt template and one or more string arguments.
      *
      * @param promptTemplate the prompt template. Preferably one of the constants in this class.
-     * @param knowledgeGraphAsJson the knowledge graph in JSON format
+     * @param args the arguments to be formatted into the template
      * @return the created prompt
      */
-    public static String createPrompt(String promptTemplate, String knowledgeGraphAsJson) {
-        return String.format(promptTemplate, knowledgeGraphAsJson);
+    public static String createPrompt(String promptTemplate, String... args) {
+        return String.format(promptTemplate, (Object[]) args);
     }
 }

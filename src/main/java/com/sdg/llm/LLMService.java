@@ -3,6 +3,8 @@ package com.sdg.llm;
 import com.sdg.logging.LoggerUtil;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import java.nio.file.StandardOpenOption;
 import java.nio.file.Files;
@@ -10,11 +12,15 @@ import java.nio.file.Paths;
 import java.io.IOException;
 
 /**
- * This class provides methods to generate high-level descriptions for a knowledge graph using the Gemini API.
- * The prompts used to generate the descriptions are defined in the {@link LLMPrompts} class.
+ * This class implements methods to generate high-level system descriptions and create
+ * PlantUML diagrams by sending prompts to an LLM.
+ * The prompt templates are defined in the {@link LLMPrompts} class.
  *
  * @see GeminiApiClient
- * @version 1.2
+ * @see ClaudeApiClient
+ * @see LLMPrompts
+ * @author Joakim Colloz
+ * @version 1.3
  */
 public class LLMService {
     private static final int MAX_TOKENS = 1024;
@@ -27,57 +33,19 @@ public class LLMService {
     }
 
     /**
-     * Generates a high-level description for a knowledge graph using the Gemini API asynchronously.
-     *
-     * @param knowledgeGraphAsJson the knowledge graph in JSON format
-     * @return a CompletableFuture containing the generated high-level description
+     * Async helper to send a prompt, extract the answer, and optionally apply a post-action.
      */
-    public CompletableFuture<String> generateHighLevelDescriptionAsync(String knowledgeGraphAsJson) {
-        LoggerUtil.info(getClass(), "Generating high-level description async for knowledge graph:\n{}\nusing prompt:\n{}",
-                knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
-
+    private CompletableFuture<String> sendPromptAsync(Supplier<String> promptSupplier, String logMessage,
+                                                      Consumer<String> onAnswer) {
+        LoggerUtil.info(getClass(), logMessage);
         try {
-            String prompt = LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson);
+            final String prompt = promptSupplier.get();
             return client.sendRequestAsync(prompt, TEMPERATURE, MAX_TOKENS)
                     .thenApply(client::getAnswer)
                     .thenApply(answer -> {
-                        writeDescriptionToFile(answer);
-                        return answer;
-                    });
-        } catch (Exception e) {
-            CompletableFuture<String> future = new CompletableFuture<>();
-            future.completeExceptionally(e);
-            return future;
-        }
-    }
-
-    public CompletableFuture<String> generatePlantUMLSyntaxAsync(final String highLevelDescription) {
-        LoggerUtil.info(getClass(), "Generating PlantUML syntax async for high-level description:\n{}\nusing prompt:\n{}",
-                highLevelDescription, LLMPrompts.PLANT_UML_SYNTAX_TEMPLATE);
-
-        try {
-            final String prompt = LLMPrompts.createPrompt(LLMPrompts.PLANT_UML_SYNTAX_TEMPLATE, highLevelDescription);
-            return client.sendRequestAsync(prompt, TEMPERATURE, MAX_TOKENS)
-                    .thenApply(client::getAnswer)
-                    .thenApply(answer -> {
-                        return answer;
-                    });
-        } catch (Exception e) {
-            CompletableFuture<String> future = new CompletableFuture<>();
-            future.completeExceptionally(e);
-            return future;
-        }
-    }
-
-    public CompletableFuture<String> tryCorrectPlantUMLSyntaxAsync(final String plantUMLSyntaxErrorMessage, final String plantUmlSyntax) {
-        LoggerUtil.info(getClass(), "Sending PlantUML syntax async to LLM for plant uml:\n{}\nusing prompt:\n{}",
-                plantUmlSyntax, LLMPrompts.PLANT_UML_SYNTAX_CORRECTION_TEMPLATE);
-
-        try {
-            final String prompt = String.format(LLMPrompts.PLANT_UML_SYNTAX_CORRECTION_TEMPLATE, plantUMLSyntaxErrorMessage, plantUmlSyntax);
-            return client.sendRequestAsync(prompt, TEMPERATURE, MAX_TOKENS)
-                    .thenApply(client::getAnswer)
-                    .thenApply(answer -> {
+                        if (onAnswer != null) {
+                            onAnswer.accept(answer);
+                        }
                         return answer;
                     });
         } catch (Exception e) {
@@ -88,26 +56,72 @@ public class LLMService {
     }
 
     /**
+     * Async helper without a post-action.
+     */
+    private CompletableFuture<String> sendPromptAsync(Supplier<String> promptSupplier, String logMessage) {
+        return sendPromptAsync(promptSupplier, logMessage, null);
+    }
+
+    /**
+     * Synchronous helper to send a prompt, extract the answer, and optionally apply a post-action.
+     */
+    private String sendPromptSync(Supplier<String> promptSupplier, String logMessage, Consumer<String> onAnswer) {
+        LoggerUtil.info(getClass(), logMessage);
+        try {
+            final String prompt = promptSupplier.get();
+            final String response = client.sendRequest(prompt, TEMPERATURE, MAX_TOKENS);
+            final String answer = client.getAnswer(response);
+            if (onAnswer != null) {
+                onAnswer.accept(answer);
+            }
+            return answer;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Generates a high-level description for a knowledge graph asynchronously.
+     *
+     * @param knowledgeGraphAsJson the knowledge graph in JSON format
+     * @return a CompletableFuture containing the generated high-level description
+     */
+    public CompletableFuture<String> generateHighLevelDescriptionAsync(String knowledgeGraphAsJson) {
+        final String log = String.format(
+                "Generating high-level description async for knowledge graph:%n%s%nusing prompt:%n%s",
+                knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
+        return sendPromptAsync(() -> LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson),
+                log, this::writeDescriptionToFile);
+    }
+
+    public CompletableFuture<String> generatePlantUMLSyntaxAsync(final String highLevelDescription) {
+        final String log = String.format(
+                "Generating PlantUML syntax async for high-level description:%n%s%nusing prompt:%n%s",
+                highLevelDescription, LLMPrompts.PLANT_UML_SYNTAX_TEMPLATE);
+        return sendPromptAsync(() -> LLMPrompts.createPrompt(LLMPrompts.PLANT_UML_SYNTAX_TEMPLATE,
+                highLevelDescription), log);
+    }
+
+    public CompletableFuture<String> tryCorrectPlantUMLSyntaxAsync(final String plantUMLSyntaxErrorMessage, final String plantUmlSyntax) {
+        final String log = String.format(
+                "Sending PlantUML syntax async to LLM for plant uml:%n%s%nusing prompt:%n%s",
+                plantUmlSyntax, LLMPrompts.PLANT_UML_SYNTAX_CORRECTION_TEMPLATE);
+        return sendPromptAsync(() -> LLMPrompts.createPrompt(LLMPrompts.PLANT_UML_SYNTAX_CORRECTION_TEMPLATE,
+                        plantUMLSyntaxErrorMessage, plantUmlSyntax), log);
+    }
+
+    /**
      * Generates a high-level description for a knowledge graph using the Gemini API synchronously.
      *
      * @param knowledgeGraphAsJson the knowledge graph in JSON format
      * @return the generated high-level description
      */
     public String generateHighLevelDescription(String knowledgeGraphAsJson) {
-        LoggerUtil.info(getClass(), "Generating high-level description for knowledge graph:\n{}\nusing prompt:\n{}",
+        final String log = String.format(
+                "Generating high-level description for knowledge graph:%n%s%nusing prompt:%n%s",
                 knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
-
-        String response;
-        try {
-            String prompt = LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson);
-            response = client.sendRequest(prompt, TEMPERATURE, MAX_TOKENS);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        String answer = client.getAnswer(response);
-        writeDescriptionToFile(answer);
-        return answer;
+        return sendPromptSync(() -> LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson),
+                log, this::writeDescriptionToFile);
     }
 
     /**
