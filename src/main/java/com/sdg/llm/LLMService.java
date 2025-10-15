@@ -23,7 +23,7 @@ import java.io.IOException;
  * @version 1.3
  */
 public class LLMService {
-    private static final int MAX_TOKENS = 1024;
+    private static final int MAX_TOKENS = 4096;
     private static final float TEMPERATURE = 0.0f;
     private final BaseClient client;
 
