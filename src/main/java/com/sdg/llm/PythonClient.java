@@ -10,7 +10,8 @@ import java.net.http.HttpResponse;
 
 /**
  * Client for interacting with the Python microservice to retrieve answers from LLM.
- * 
+ * This class was used to interact with local LLM but are currently not used and thus might not work as expected.
+ *
  * @author Joakim Colloz
  * @version 1.0
  */

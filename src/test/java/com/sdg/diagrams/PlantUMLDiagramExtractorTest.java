@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static com.sdg.diagrams.PlantUMLTestData.CLAUDE_GENERATED_PLANT_UML;
+import static com.sdg.diagrams.PlantUMLTestData.CORRECT_PLANTUML_SYNTAX_IN_CODE_BLOCK;
 import static com.sdg.diagrams.PlantUMLTestData.ONE_DIAGRAM_MISSING_END;
 import static com.sdg.diagrams.PlantUMLTestData.ONE_DIAGRAM_MISSING_START;
 import static com.sdg.diagrams.PlantUMLTestData.VALID_THREE_DIAGRAMS;
@@ -23,6 +24,7 @@ class PlantUMLDiagramExtractorTest {
             ONE_DIAGRAM_MISSING_START,
             ONE_DIAGRAM_MISSING_END,
             CLAUDE_GENERATED_PLANT_UML,
+            CORRECT_PLANTUML_SYNTAX_IN_CODE_BLOCK,
     })
     @DisplayName("Should ensure all parsed diagrams have correct start and end directives")
     void shouldEnsureAllParsedDiagramsHaveCorrectDirectives(String plantUMLDiagrams) {
@@ -53,6 +55,7 @@ class PlantUMLDiagramExtractorTest {
                 Arguments.of(ONE_DIAGRAM_MISSING_START, 2),
                 Arguments.of(ONE_DIAGRAM_MISSING_END, 2),
                 Arguments.of(CLAUDE_GENERATED_PLANT_UML, 3),
+                Arguments.of(CORRECT_PLANTUML_SYNTAX_IN_CODE_BLOCK, 1),
                 Arguments.of("invalid plant uml diagram syntax", 0)
         );
     }
