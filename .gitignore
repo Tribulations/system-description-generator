@@ -71,6 +71,8 @@ Thumbs.db
 src/main/java/com/sdg/graph/Neo4jConfig.java
 src/main/java/com/sdg/llm/ClaudeApiConfig.java
 src/main/java/com/sdg/llm/GeminiApiConfig.java
+graph_output*
+description_output*
 
 *.log
 logs/

@@ -3,6 +3,7 @@ package com.sdg.llm;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sdg.logging.LoggerUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -69,6 +70,7 @@ public class GeminiApiClient extends BaseClient {
                     if (response.statusCode() >= 200 && response.statusCode() < 300) {
                         return response.body();
                     } else {
+                        LoggerUtil.error(getClass(), "API request failed with status code: " + response.statusCode());
                         throw new RuntimeException("API request failed with status code: " + response.statusCode() +
                                 ", response: " + response.body());
                     }

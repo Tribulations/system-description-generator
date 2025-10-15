@@ -33,7 +33,7 @@ public class LLMService {
      * @return a CompletableFuture containing the generated high-level description
      */
     public CompletableFuture<String> generateHighLevelDescriptionAsync(String knowledgeGraphAsJson) {
-        LoggerUtil.info(getClass(), "Generating high-level description async for knowledge graph: {}, using prompt: {}",
+        LoggerUtil.info(getClass(), "Generating high-level description async for knowledge graph:\n{}\nusing prompt:\n{}",
                 knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
 
         try {
@@ -51,6 +51,42 @@ public class LLMService {
         }
     }
 
+    public CompletableFuture<String> generatePlantUMLSyntaxAsync(final String highLevelDescription) {
+        LoggerUtil.info(getClass(), "Generating PlantUML syntax async for high-level description:\n{}\nusing prompt:\n{}",
+                highLevelDescription, LLMPrompts.PLANT_UML_SYNTAX_TEMPLATE);
+
+        try {
+            final String prompt = LLMPrompts.createPrompt(LLMPrompts.PLANT_UML_SYNTAX_TEMPLATE, highLevelDescription);
+            return client.sendRequestAsync(prompt, TEMPERATURE, MAX_TOKENS)
+                    .thenApply(client::getAnswer)
+                    .thenApply(answer -> {
+                        return answer;
+                    });
+        } catch (Exception e) {
+            CompletableFuture<String> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
+        }
+    }
+
+    public CompletableFuture<String> tryCorrectPlantUMLSyntaxAsync(final String plantUMLSyntaxErrorMessage, final String plantUmlSyntax) {
+        LoggerUtil.info(getClass(), "Sending PlantUML syntax async to LLM for plant uml:\n{}\nusing prompt:\n{}",
+                plantUmlSyntax, LLMPrompts.PLANT_UML_SYNTAX_CORRECTION_TEMPLATE);
+
+        try {
+            final String prompt = String.format(LLMPrompts.PLANT_UML_SYNTAX_CORRECTION_TEMPLATE, plantUMLSyntaxErrorMessage, plantUmlSyntax);
+            return client.sendRequestAsync(prompt, TEMPERATURE, MAX_TOKENS)
+                    .thenApply(client::getAnswer)
+                    .thenApply(answer -> {
+                        return answer;
+                    });
+        } catch (Exception e) {
+            CompletableFuture<String> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
+        }
+    }
+
     /**
      * Generates a high-level description for a knowledge graph using the Gemini API synchronously.
      *
@@ -58,7 +94,7 @@ public class LLMService {
      * @return the generated high-level description
      */
     public String generateHighLevelDescription(String knowledgeGraphAsJson) {
-        LoggerUtil.info(getClass(), "Generating high-level description for knowledge graph: {}, using prompt: {}",
+        LoggerUtil.info(getClass(), "Generating high-level description for knowledge graph:\n{}\nusing prompt:\n{}",
                 knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
 
         String response;

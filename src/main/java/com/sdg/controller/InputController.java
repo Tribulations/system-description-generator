@@ -1,9 +1,16 @@
 package com.sdg.controller;
 
 import com.sdg.ast.ASTAnalyzerConfig;
+import com.sdg.diagrams.DiagramFetcher;
+import com.sdg.diagrams.DiagramTabManager;
 import com.sdg.graph.KnowledgeGraphService;
+
+import com.sdg.llm.GeminiApiClient;
+import com.sdg.llm.LLMService;
+import com.sdg.logging.LoggerUtil;
 import com.sdg.model.InputHandler.ProcessingResult;
-import com.sdg.view.InputView;
+import com.sdg.view.MainView;
+
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.core.Scheduler;
@@ -14,17 +21,21 @@ import javax.swing.JFileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /**
  * The InputController class handles user interactions in the UI, processes input files,
  * and manages asynchronous operations using RxJava.
  *
  * @author Suraj Karki
+ * @author Joaim Colloz
  */
 public class InputController {
     private static final Logger logger = LoggerFactory.getLogger(InputController.class);
 
-    private final InputView view;
+    private final MainView view;
     private final KnowledgeGraphService graphService;
+    private final DiagramFetcher diagramFetcher;
     private final CompositeDisposable disposables = new CompositeDisposable();
     private final Scheduler swingScheduler = Schedulers.from(SwingUtilities::invokeLater);
 
@@ -33,9 +44,10 @@ public class InputController {
      * @param view  The UI component for user interaction.
      * @param graphService The service responsible for processing files and generating the knowledge graph.
      */
-    public InputController(InputView view, KnowledgeGraphService graphService) {
+    public InputController(MainView view, KnowledgeGraphService graphService, DiagramFetcher diagramFetcher) {
         this.view = view;
         this.graphService = graphService;
+        this.diagramFetcher = diagramFetcher;
 
         // Attach event listeners to the UI buttons
         view.addBrowseListener(e -> browseFile());
@@ -132,13 +144,24 @@ public class InputController {
                         .subscribe(
                                 response -> {
                                     view.clearLoadingIndicator();
-                                    updateOutput("\nSystem " +
-                                            "Description: " + response);
+                                    updateOutput("\nSystem Description: " + response);
+                                    LoggerUtil.info(getClass(), "Received system description: \n" + response);
+
+                                    List<String> diagrams = diagramFetcher.generatePlantUMLDiagrams(response);
+                                    List<String> validatedDiagrams = diagramFetcher.validateAndCorrectPlantUMLDiagrams(diagrams)
+                                            .blockingGet();
+
+                                    for (String diagram : diagrams) {
+                                        LoggerUtil.info(getClass(), "Generated diagram: \n" + diagram);
+                                    }
+
+                                    view.addDiagramToTabbedPane("UML Diagrams", new DiagramTabManager(validatedDiagrams));
                                 },
                                 this::handleLLMProcessingError
                         )
         );
     }
+
     /**
      * Handles errors that occur during LLM response generation.
      * Logs the error and displays a message in the UI.
@@ -172,7 +195,7 @@ public class InputController {
      */
     public static void start() {
         SwingUtilities.invokeLater(() -> {
-            InputView view = new InputView();
+            MainView view = new MainView();
 
             // Configure ASTAnalyzer to turn off analysis of specific parts of the AST
             ASTAnalyzerConfig config = new ASTAnalyzerConfig()
@@ -182,7 +205,8 @@ public class InputController {
                     .omitPrivateMethodCalls(true);
 
             KnowledgeGraphService graphService = new KnowledgeGraphService(config);  // Initialize KnowledgeGraphService
-            InputController controller = new InputController(view, graphService);
+            DiagramFetcher diagramFetcher = new DiagramFetcher(new LLMService(new GeminiApiClient()));
+            InputController controller = new InputController(view, graphService, diagramFetcher);
 
             // Ensure resources are disposed of when the application exits
             Runtime.getRuntime().addShutdownHook(new Thread(controller::dispose));

@@ -18,7 +18,10 @@ To run the System Description Generator (SDG), follow these steps:
 4. **Configure LLM API**
     - See [LLM config section](#LLM-configuration) for the required configuration
 
-5. **Build and run**
+5. **Install Graphviz**
+    - See [Graphviz](https://www.graphviz.org/download/)
+
+6. **Build and run**
     - Compile and run the SDG application
 
 ## Neo4j installation and configuration
