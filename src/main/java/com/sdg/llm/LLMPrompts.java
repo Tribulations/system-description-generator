@@ -35,11 +35,11 @@ public class LLMPrompts {
     public static final String PLANT_UML_SYNTAX_TEMPLATE = """
             You are an expert software architect and PlantUML diagram generator.
             
-            Based on the following high-level description of a software system, generate **five PlantUML diagrams** to help a new maintainer or developer quickly understand the system:
+            Based on the following high-level description of a software system, generate **five PlantUML diagrams** to help a new developer quickly understand the system:
             
             1. **Use Case Diagram** – Show the primary actors (users, external systems) and their interactions with the system’s main features.
-            2. **Component/Architecture Diagram** – Show the main system components (grouped into layers if applicable), their relationships, and dependencies.
-            3. **Package Diagram** – Show the high-level organization of the codebase (Java packages, modules, or namespaces).
+            2. **Component/Architecture Diagram** – Show the main system components (grouped into layers if applicable), their relationships, and dependencies. Keep this diagram **extra concise**, with only the most important elements.
+            3. **Package Diagram** – Show the high-level organization of the codebase (Java packages, modules, or namespaces). Keep this diagram **extra concise**, with only essential packages or modules.
             4. **Sequence Diagram** – Illustrate a key workflow (choose the most representative or critical one, e.g., variant calling in GATK).
             5. **Activity Diagram** – Show the major steps and decision points in a core processing flow.
             
