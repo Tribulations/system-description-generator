@@ -101,10 +101,7 @@ public class InputController {
                                     "You can generate the description now.");
                             view.clearLoadingIndicator(); // Clear loading indicator after processing
                         })
-                        .subscribe(
-                                this::handleProcessingResult,
-                                this::handleProcessingError
-                        )
+                        .subscribe(this::logProcessingResult, this::handleProcessingError)
         );
     }
 
@@ -113,8 +110,8 @@ public class InputController {
      * Updates the UI with details of the processed file.
      * @param result The processing result containing file details and content.
      */
-    private void handleProcessingResult(ProcessingResult result) {
-        //updateOutput("\nProcessing file: " + result.file());
+    private void logProcessingResult(ProcessingResult result) {
+        LoggerUtil.info(getClass(), "Project directory processed successfully: {}", result.file());
     }
 
     /**
@@ -139,27 +136,55 @@ public class InputController {
                 graphService.generateLLMResponseAsync()
                         .subscribeOn(Schedulers.io())   // Run on a background thread
                         .observeOn(swingScheduler)     // UI updates on Swing thread
-                        .doOnSubscribe(disposable -> view.showLoadingIndicator("Generating description..."))
-                        .doFinally(view::clearLoadingIndicator) // Clear loading indicator after processing
+                        .doOnSubscribe(disposable -> view.showLoadingIndicator("Generating textual description..."))
                         .subscribe(
-                                response -> {
-                                    view.clearLoadingIndicator();
-                                    updateOutput("\nSystem Description: " + response);
-                                    LoggerUtil.info(getClass(), "Received system description: \n" + response);
-
-                                    List<String> diagrams = diagramFetcher.generatePlantUMLDiagrams(response);
-                                    List<String> validatedDiagrams = diagramFetcher.validateAndCorrectPlantUMLDiagrams(diagrams)
-                                            .blockingGet();
-
-                                    for (String diagram : diagrams) {
-                                        LoggerUtil.info(getClass(), "Generated diagram: \n" + diagram);
-                                    }
-
-                                    view.addDiagramToTabbedPane("UML Diagrams", new DiagramTabManager(validatedDiagrams));
-                                },
+                                this::handleLLMResponse,
                                 this::handleLLMProcessingError
                         )
         );
+    }
+
+    /**
+     * Handles the LLM response by updating the UI and triggering diagram generation.
+     *
+     * @param response The response from the LLM containing the system description
+     */
+    private void handleLLMResponse(String response) {
+        updateOutput("\nSystem Description: " + response);
+        LoggerUtil.info(getClass(), "Received system description: \n" + response);
+
+        // Generate and validate diagrams asynchronously to avoid blocking the UI
+        // Switch the loading indicator to the diagrams phase and let that stream clear it when done
+        view.showLoadingIndicator("Generating diagrams...");
+        generateAndDisplayDiagrams(response);
+    }
+
+    /**
+     * Generates and displays PlantUML diagrams based on the system description.
+     *
+     * @param systemDescription The system description to generate diagrams from
+     */
+    private void generateAndDisplayDiagrams(String systemDescription) {
+        disposables.add(
+                diagramFetcher.generatePlantUMLDiagramsAsync(systemDescription)
+                        .subscribeOn(Schedulers.io())
+                        .flatMap(diagramFetcher::validateAndCorrectPlantUMLDiagrams)
+                        .observeOn(swingScheduler)
+                        .doFinally(view::clearLoadingIndicator)
+                        .subscribe(this::handleGeneratedDiagrams, this::handleLLMProcessingError)
+        );
+    }
+
+    /**
+     * Handles the generated diagrams by logging them and updating the UI.
+     *
+     * @param validatedDiagrams The list of validated PlantUML diagrams
+     */
+    private void handleGeneratedDiagrams(List<String> validatedDiagrams) {
+        for (String diagram : validatedDiagrams) {
+            LoggerUtil.info(getClass(), "Generated diagram: \n" + diagram);
+        }
+        view.addDiagramToTabbedPane("UML Diagrams", new DiagramTabManager(validatedDiagrams));
     }
 
     /**
@@ -169,6 +194,7 @@ public class InputController {
      */
     private void handleLLMProcessingError(Throwable throwable) {
         String errorMessage = "\nLLM Response Error: " + throwable.getMessage();
+        view.clearLoadingIndicator();
         logger.error(errorMessage, throwable);
         updateOutput(errorMessage);
     }

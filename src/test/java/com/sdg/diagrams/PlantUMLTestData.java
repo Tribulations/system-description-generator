@@ -368,4 +368,51 @@ public final class PlantUMLTestData {
             stop
             
             @enduml""";
+
+    public static final String CORRECT_PLANTUML_SYNTAX_IN_CODE_BLOCK = """
+            ```plantuml
+            @startuml
+            start
+            
+            :Receive User Input;
+            note right: Step 1
+            User input received by Controller
+            end note
+            
+            :Pass Input to Chatbot;
+            note right: Step 2
+            Controller passes input to Chatbot
+            end note
+            
+            :Determine User Intent;
+            note right: Step 3
+            Chatbot uses IntentDetector
+            end note
+            
+            :Manage Conversation Context;
+            note right: Step 4
+            ConversationHelper manages context
+            end note
+            
+            fork
+              :Retrieve Cryptocurrency Prices;
+              note right: Step 5
+              If intent involves crypto prices, retrieve data from CoinbasePriceFeed
+              end note
+            fork again
+              :Generate Response;
+              note right: Step 6
+              Chatbot generates response
+              end note
+            end fork
+            
+            :Send Response to Controller;
+            note right: Step 7
+            Chatbot sends response to Controller
+            end note
+            
+            stop
+            @enduml
+            ```
+            """;
 }
