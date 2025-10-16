@@ -6,8 +6,7 @@ To run the System Description Generator (SDG), follow these steps:
 
 1. **Install Neo4j locally**
     - See the [Neo4j installation section](#neo4j-installation-and-configuration) below for instructions
-
-2. **Configure Neo4j connection**
+2. **Configure Neo4j connection** 
     - Create the file `Neo4jConfig.java` in `src/main/java/com/sdg/graph/`
     - See [Neo4j config section](#configuration-setup-to-connect-to-the-database-from-the-java-application) for the required configuration
 
@@ -16,7 +15,7 @@ To run the System Description Generator (SDG), follow these steps:
     - Create an account and generate your API key
 
 4. **Configure LLM API**
-    - See [LLM config section](#LLM-configuration) for the required configuration
+    - Create a .env file based on the .env.template file in the root directory of the project.
 
 5. **Install Graphviz**
     - See [Graphviz](https://www.graphviz.org/download/)
@@ -122,40 +121,6 @@ public class Neo4jConfig {
 ```
 
 ### Installation on Windows (TODO)
-
-## LLM configuration
-
-### Create a `GeminiApiConfig.java` or `ClaudeApiConfig.java` in `src/main/java/com/sdg/llm/`
-
-**GeminiApiConfig.java**
-```java
-package com.sdg.llm;
-
-public class GeminiApiConfigTemplate {
-    private GeminiApiConfigTemplate() {
-        throw new IllegalStateException("Cannot instantiate this class");
-    }
-
-    public static final String API_KEY = "your-api-key";
-    public static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-}
-```
-
-**ClaudeApiConfig.java**
-```java
-package com.sdg.llm;
-
-public class ClaudeApiConfigTemplate {
-    private ClaudeApiConfigTemplate() {
-        throw new IllegalStateException("Cannot instantiate this class");
-    }
-
-    public static final String API_KEY = "your-api-key";
-    public static final String API_URL = "https://api.anthropic.com/v1/messages";
-    public static final String API_VERSION = "2023-06-01";
-    public static final String MODEL = "claude-3-5-sonnet-20241022";
-}
-```
 
 ## Logging
 
