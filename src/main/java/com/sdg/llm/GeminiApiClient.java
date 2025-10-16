@@ -3,7 +3,9 @@ package com.sdg.llm;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sdg.logging.EnvConfig;
 import com.sdg.logging.LoggerUtil;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -14,10 +16,11 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * This class is a client for interacting with the Gemini API to retrieve answers from LLM.
- * To use this class, you need to have a valid API key and API URL.
+ * To use this class, you need to have a valid API key, API URL, model and endpoint.
+ * See .env.template for more information.
  *
  * @see <a href="https://ai.google.dev/">Gemini API Documentation</a>
- * @version 1.1
+ * @version 1.2
  */
 public class GeminiApiClient extends BaseClient {
     public GeminiApiClient(final String apiUrl, final String apiKey) {
@@ -25,7 +28,12 @@ public class GeminiApiClient extends BaseClient {
     }
     
     public GeminiApiClient() {
-        this(GeminiApiConfig.API_URL, GeminiApiConfig.API_KEY);
+        this(
+                EnvConfig.getInstance().get("GEMINI_API_URL")
+                        + EnvConfig.getInstance().get("GEMINI_MODEL")
+                        + ":"
+                        + EnvConfig.getInstance().get("GEMINI_ENDPOINT"),
+                EnvConfig.getInstance().get("GEMINI_API_KEY"));
     }
 
     /**
