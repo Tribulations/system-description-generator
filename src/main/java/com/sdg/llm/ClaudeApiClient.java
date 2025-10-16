@@ -3,6 +3,7 @@ package com.sdg.llm;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sdg.logging.EnvConfig;
 import com.sdg.logging.LoggerUtil;
 
 import java.net.URI;
@@ -36,19 +37,21 @@ import java.util.concurrent.CompletableFuture;
  *   }
  * }
  * @see <a href="https://docs.anthropic.com/en/home">Claude API Documentation</a>
- * @version 1.1
+ * @version 1.2
  * @author Joakim Colloz
  */
 public class ClaudeApiClient extends BaseClient {
-    private static final String API_VERSION = ClaudeApiConfig.API_VERSION;
-    private static final String MODEL = ClaudeApiConfig.MODEL;
+    private final String API_VERSION;
+    private final String MODEL;
 
     public ClaudeApiClient(final String apiUrl, final String apiKey) {
         super(apiUrl, apiKey);
+        this.API_VERSION = EnvConfig.getInstance().get("CLAUDE_API_VERSION");
+        this.MODEL = EnvConfig.getInstance().get("CLAUDE_MODEL");
     }
 
     public ClaudeApiClient() {
-        this(ClaudeApiConfig.API_URL, ClaudeApiConfig.API_KEY);
+        this(EnvConfig.getInstance().get("CLAUDE_API_URL"), EnvConfig.getInstance().get("CLAUDE_API_KEY"));
     }
 
     /**
