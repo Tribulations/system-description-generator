@@ -4,24 +4,28 @@
 
 To run the System Description Generator (SDG), follow these steps:
 
-1. **Install Neo4j locally**
-    - See the [Neo4j installation section](#neo4j-installation-and-configuration) below for instructions
-2. **Configure Neo4j connection** 
-    - Create the file `Neo4jConfig.java` in `src/main/java/com/sdg/graph/`
-    - See [Neo4j config section](#configuration-setup-to-connect-to-the-database-from-the-java-application) for the required configuration
-
-3. **Obtain an LLM API key**
+1. **Obtain an LLM API key**
     - Choose either [Anthropic (Claude)](https://www.anthropic.com/api) (paid) or [Google Gemini](https://ai.google.dev/) (free)
     - Create an account and generate your API key
 
-4. **Configure LLM API**
+2. **Configure required environment variables**
     - Create a .env file based on the .env.template file in the root directory of the project.
 
-5. **Install Graphviz**
+3. **Install Graphviz**
     - See [Graphviz](https://www.graphviz.org/download/)
 
-6. **Build and run**
-    - Compile and run the SDG application
+4. **Setup Neo4j database (knowledge graph)**
+    - You can either install and configure Neo4j locally or use a docker container (likely easier on Windows)
+      - **Install Neo4j locally**: See the [Neo4j installation section](#neo4j-installation-and-configuration) below for instructions
+      - **Use Neo4j docker container**
+        - Install [docker compose](https://docs.docker.com/compose/install) if not already installed 
+        - Run `docker compose --env-file .env up` in the root directory of the project.
+
+5. **Build and run**
+    - Run `mvn clean install` to build the application
+      - If the integration tests fail, run `mvn clean install -DskipTests` to skip the integration tests
+    - Run the SDG application with `java -jar target/system-description-generator-1.0-SNAPSHOT.jar`
+    - The application should start!
 
 ## Neo4j installation and configuration
 
@@ -100,25 +104,8 @@ Data directory: Default location: /var/lib/neo4j/data Logs: /var/log/neo4j
 
 ### Ports used by Neo4j
 
-7474: HTTP port for Neo4j Browser 7687: Bolt port for database connections (used by the Java application)
-
-### Configuration Setup to connect to the database from the Java application
-
-After installation create file `Neo4jConfig.java` in folder `src/main/java/com/sdg/graph/` with the following content:
-
-```java
-package com.sdg.graph;
-
-public class Neo4jConfig {
-    private Neo4jConfig() {
-        throw new IllegalStateException("Cannot instantiate this class");
-    }
-
-    public static final String DB_URI = "bolt://localhost:7687";
-    public static final String DB_USER = "your-username";
-    public static final String DB_PASSWORD = "your-password";
-}
-```
+- 7474: HTTP port for Neo4j Browser 
+- 7687: Bolt port for database connections (used by the Java application)
 
 ### Installation on Windows (TODO)
 
@@ -146,4 +133,3 @@ python src/main/python/microservice/multiply_service.py
 
 ```bash
 mvn dependency:sources dependency:resolve -Dclassifier=javadoc
-```
