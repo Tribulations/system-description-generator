@@ -1,5 +1,6 @@
 package com.sdg.graph;
 
+import com.sdg.logging.EnvConfig;
 import com.sdg.logging.LoggerUtil;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
@@ -33,9 +34,11 @@ public class GraphDatabaseOperations implements AutoCloseable {
     public GraphDatabaseOperations() {
         LoggerUtil.info(getClass(), "Initializing GraphDatabaseOperations");
         this.driver = GraphDatabase.driver(
-                Neo4jConfig.DB_URI, AuthTokens.basic(Neo4jConfig.DB_USER, Neo4jConfig.DB_PASSWORD)
+                EnvConfig.getInstance().get("NEO4J_URI"),
+                AuthTokens.basic(EnvConfig.getInstance().get("NEO4J_USER"), EnvConfig.getInstance().get("NEO4J_PASSWORD"))
         );
-        LoggerUtil.debug(getClass(), "Neo4j driver initialized with URI: {}", Neo4jConfig.DB_URI);
+        LoggerUtil.debug(getClass(), "Neo4j driver initialized with URI: {}",
+                EnvConfig.getInstance().get("NEO4J_URI"));
     }
 
     /**
