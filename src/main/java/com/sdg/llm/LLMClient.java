@@ -5,14 +5,14 @@ import java.net.http.HttpRequest;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-public abstract  class BaseClient {
+public abstract  class LLMClient {
     protected final String apiUrl;
     protected final String apiKey;
     protected static final int connectionTimeoutSeconds = 30;
 
     protected final HttpClient httpClient;
 
-    public BaseClient(final String apiUrl, final String apiKey) {
+    public LLMClient(final String apiUrl, final String apiKey) {
         this.apiUrl = apiUrl;
         this.apiKey = apiKey;
         this.httpClient = HttpClient.newBuilder()
