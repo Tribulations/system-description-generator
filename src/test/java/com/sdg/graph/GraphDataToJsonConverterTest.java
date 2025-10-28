@@ -1,5 +1,8 @@
 package com.sdg.graph;
 
+import com.sdg.ast.ASTAnalyzerConfig;
+import com.sdg.llm.LLMClient;
+import com.sdg.llm.GeminiApiClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -46,7 +49,9 @@ class GraphDataToJsonConverterTest {
     void setUp() {
         dbOps = new GraphDatabaseOperations();
         graphDataToJsonConverter = new GraphDataToJsonConverter(dbOps.getDriver());
-        knowledgeGraphService = new KnowledgeGraphService();
+        LLMClient dummyClient = new GeminiApiClient();
+        ASTAnalyzerConfig dummyConfig = new ASTAnalyzerConfig();
+        knowledgeGraphService = new KnowledgeGraphService(dummyConfig, dummyClient); // TODO refactor KnowledgeGraphService to not use BaseClient or LLMService
         mapper = new ObjectMapper();
         dbOps.deleteAllData(); // Start with a clean database
     }
