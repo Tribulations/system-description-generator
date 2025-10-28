@@ -80,7 +80,7 @@ public class MainView extends JFrame {
         });
 
         browseButton = new JButton("Browse");
-        processButton = new JButton("Create Knowledge Graph");
+        processButton = new JButton("Process");
         descButton = new JButton("Generate Description");
 
         // Configure input field to expand and fill available space
