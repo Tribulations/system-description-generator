@@ -30,25 +30,40 @@ public class DiagramFetcher {
                 .map(PlantUMLDiagramExtractor::parsePlantUML);
     }
 
-    public Single<List<String>> validateAndCorrectPlantUMLDiagrams(List<String> nonValidatedDiagrams) {
+    public Single<List<DiagramResult>> validateAndCorrectPlantUMLDiagramsWithResults(List<String> nonValidatedDiagrams) {
         // Validate each diagram; if invalid, correct via LLM and re-validate up to maxRetries.
         final int maxRetries = 2;
 
         return Observable.fromIterable(nonValidatedDiagrams)
                 .concatMapSingle(diagram -> validateWithCorrections(diagram, maxRetries))
                 .toList()
-                .doOnSuccess(list -> LoggerUtil.debug(getClass(), "Validated {} diagrams", list.size()));
+                .doOnSuccess(list -> LoggerUtil.debug(getClass(), "Validated (success or failure recorded) {} diagrams", list.size()));
+    }
+
+    // Returns only successfully validated diagrams
+    public Single<List<String>> validateAndCorrectPlantUMLDiagrams(List<String> nonValidatedDiagrams) {
+        return validateAndCorrectPlantUMLDiagramsWithResults(nonValidatedDiagrams)
+                .map(list ->
+                        Observable.fromIterable(list)
+                                .filter(DiagramResult::isSuccess)
+                                .map(DiagramResult::getPlantUMLSource)
+                                .toList()
+                                .blockingGet()
+                );
     }
 
     /**
      * Attempts to validate a diagram; on failure, asks LLM to correct and re-validates up to retriesLeft times.
      */
-    private Single<String> validateWithCorrections(String diagram, int retriesLeft) {
+    private Single<DiagramResult> validateWithCorrections(String diagram, int retriesLeft) {
         return validateOnce(diagram)
+                .map(DiagramResult::success)
                 .onErrorResumeNext(syntaxError -> {
                     LoggerUtil.debug(getClass(), "PlantUML syntax error: {}", syntaxError.getMessage());
                     if (retriesLeft <= 0) {
-                        return Single.error(syntaxError);
+                        // After all retries, return a failure result instead of failing the stream.
+                        String uiMessage = "Failed to generate this diagram. You can try to re-generate all diagrams again by pressing the Generate description button.";
+                        return Single.just(DiagramResult.failure(uiMessage));
                     }
                     // Ask LLM to correct, then re-validate recursively with one fewer retry.
                     return tryCorrectPlantUMLSyntaxAsync(syntaxError.getMessage(), diagram)
@@ -102,5 +117,9 @@ public class DiagramFetcher {
                 }
             });
         });
+    }
+
+    public LLMService getLlmService() {
+        return llmService;
     }
 }

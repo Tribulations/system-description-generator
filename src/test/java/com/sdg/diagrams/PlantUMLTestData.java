@@ -415,4 +415,91 @@ public final class PlantUMLTestData {
             @enduml
             ```
             """;
+
+    public static final String CORRECT_PLANT_UML_WITH_ERROR_KEYWORD = """
+            @startuml
+            title Stock Data Collector - Core Processing Flow
+            
+            start
+            
+            :Initialize System;
+            
+            fork
+              :Fetch Yahoo Finance Data;
+            fork again
+              :Fetch FinanceBird Data;
+            end fork
+            
+            :Parse Raw JSON Data;
+            
+            if (Data Valid?) then (yes)
+              :Transform to Candlestick Objects;
+              :Validate Business Rules;
+            
+              if (Validation Passed?) then (yes)
+                :Store in Database;
+                :Log Success;
+              else (no)
+                :Log Validation Errors;
+              endif
+            
+            else (no)
+              :Log Parsing Errors;
+            endif
+            
+            stop
+            
+            @enduml
+            """;
+
+    public static final String INCORRECT_UML_SYNTAX = """
+            @startuml
+            title BatBat Game - Core Game Flow
+            
+            start
+            
+            :Initialize Game;
+            
+            fork
+                :Handle Input;
+            fork again
+                :Update Game State;
+                if (Player Collides?) then (yes)
+                    :Process Collision;
+                    :Update Player State;
+                endif
+            fork again
+                :Render Graphics;
+            end fork
+            
+            if (Game Over?) then (yes)
+                :Show Game Over Screen;
+                stop
+            else (no)
+                repeat :Continue Game Loop;
+            endif
+            
+            @enduml
+            """;
+
+    public static final String CORRECT_PLANT_UML_SYNTAX = """
+            @startuml
+            title BatBat Game - Package Structure
+            
+            package "com.batbat.game" {
+                package "core" {}
+                package "entity" {}
+                package "gamestate" {}
+                package "tilemap" {}
+                package "audio" {}
+            }
+            
+            core --> entity
+            core --> gamestate
+            entity --> tilemap
+            gamestate --> entity
+            audio --> core
+            
+            @enduml
+            """;
 }

@@ -40,7 +40,7 @@ import java.util.concurrent.CompletableFuture;
  * @version 1.2
  * @author Joakim Colloz
  */
-public class ClaudeApiClient extends BaseClient {
+public class ClaudeApiClient extends LLMClient {
     private final String API_VERSION;
     private final String MODEL;
 
@@ -155,5 +155,10 @@ public class ClaudeApiClient extends BaseClient {
         }
 
         return root.get("content").get(0).get("text").asText();
+    }
+
+    @Override
+    protected String getClientModelName() {
+        return MODEL;
     }
 }

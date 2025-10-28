@@ -4,6 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static com.sdg.diagrams.PlantUMLTestData.CORRECT_PLANT_UML_SYNTAX;
+import static com.sdg.diagrams.PlantUMLTestData.CORRECT_PLANT_UML_WITH_ERROR_KEYWORD;
+import static com.sdg.diagrams.PlantUMLTestData.INCORRECT_UML_SYNTAX;
 import static com.sdg.diagrams.PlantUMLTestData.INVALID_PLANT_UML_SYNTAX_SOURCE;
 import static com.sdg.diagrams.PlantUMLTestData.INVALID_UML;
 import static com.sdg.diagrams.PlantUMLTestData.THROWS_ILLEGAL_STATE_EXCEPTION_BUT_SYNTAX_STILL_PASS;
@@ -38,8 +41,22 @@ class PlantUMLValidatorTest {
     }
 
     @Test
+    void testIncorrectPlantUMLSyntaxThrowsExceptionWithDescriptiveErrorMessage2() throws IOException {
+        String errorMessage = "";
+        try {
+            PlantUMLValidator.validatePlantUMLSyntax(INCORRECT_UML_SYNTAX);
+        } catch (RuntimeException e) {
+            errorMessage = e.getMessage();
+        }
+
+        assertTrue(errorMessage.contains("From string (line 25)"));
+    }
+
+    @Test
     void testCorrectPlantUMLSyntax() throws IOException {
         assertTrue(PlantUMLValidator.validatePlantUMLSyntax(VALID_PLANT_UML_SYNTAX));
+        assertTrue(PlantUMLValidator.validatePlantUMLSyntax(CORRECT_PLANT_UML_WITH_ERROR_KEYWORD));
+        assertTrue(PlantUMLValidator.validatePlantUMLSyntax(CORRECT_PLANT_UML_SYNTAX));
     }
 
     /**

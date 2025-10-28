@@ -85,3 +85,5 @@ __pycache__/
 
 # env file
 .env
+
+sdg-out/

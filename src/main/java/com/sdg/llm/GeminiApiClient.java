@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
  * @see <a href="https://ai.google.dev/">Gemini API Documentation</a>
  * @version 1.2
  */
-public class GeminiApiClient extends BaseClient {
+public class GeminiApiClient extends LLMClient {
     public GeminiApiClient(final String apiUrl, final String apiKey) {
         super(apiUrl, apiKey);
     }
@@ -157,5 +157,10 @@ public class GeminiApiClient extends BaseClient {
         }
 
         throw new RuntimeException("Unexpected API response format: " + response);
+    }
+
+    @Override
+    protected String getClientModelName() {
+        return EnvConfig.getInstance().get("GEMINI_MODEL");
     }
 }

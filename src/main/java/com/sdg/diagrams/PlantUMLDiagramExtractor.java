@@ -4,34 +4,43 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PlantUMLDiagramExtractor {
-    public static List<String> parsePlantUML(String plantUMLSyntax) { // TODO looks like the start directive has a leading space?
-        final List<String> parsedUMLSyntaxList = new ArrayList<>();
-        int startDirectiveIndex = 0, endDirectiveIndex = 0, traversedLength = 0;
-        final String startDirective = "@startuml", endDirective = "@enduml";
-        boolean firstStartDirectiveFound = false;
+    public static List<String> parsePlantUML(String plantUMLSyntax) {
+        final List<String> diagrams = new ArrayList<>();
+        final String[] lines = plantUMLSyntax.split("\n");
 
-        for (final String currentLine : plantUMLSyntax.split("\n")) {
-            if (currentLine.contains(startDirective)) {
-                startDirectiveIndex = traversedLength;
-                firstStartDirectiveFound = true;
+        boolean inside = false;
+        StringBuilder current = new StringBuilder();
+
+        for (String rawLine : lines) {
+            String line = rawLine;
+            // Ignore markdown code fences
+            if (line.startsWith("```") || line.startsWith("~~~")) {
+                continue;
             }
 
+            String trimmed = line.trim();
+            boolean isStart = trimmed.startsWith("@startuml");
+            boolean isEnd = trimmed.startsWith("@enduml");
 
-            if (currentLine.contains(endDirective)) {
-                endDirectiveIndex = endDirective.length() + traversedLength;
+            if (isStart) {
+                inside = true;
+                current.setLength(0);
+                current.append("@startuml\n");
+                continue;
             }
 
-            if (startDirectiveIndex < endDirectiveIndex && firstStartDirectiveFound) {
-                parsedUMLSyntaxList.add(plantUMLSyntax.substring(startDirectiveIndex, endDirectiveIndex));
-                startDirectiveIndex = 0;
-                endDirectiveIndex = 0;
+            if (inside) {
+                if (isEnd) {
+                    current.append("@enduml\n");
+                    diagrams.add(current.toString());
+                    inside = false;
+                    current.setLength(0);
+                } else {
+                    current.append(line).append('\n');
+                }
             }
-
-            // Add the current lines length + 1 so we take \n in the plantUMLSyntax into account
-            traversedLength += currentLine.length() + 1;
-
         }
 
-        return parsedUMLSyntaxList;
+        return diagrams;
     }
 }

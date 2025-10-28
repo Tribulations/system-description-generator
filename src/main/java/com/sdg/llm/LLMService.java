@@ -25,10 +25,10 @@ import java.io.IOException;
 public class LLMService {
     private static final int MAX_TOKENS = 4096;
     private static final float TEMPERATURE = 0.0f;
-    private final BaseClient client;
+    private final LLMClient client;
 
-    public LLMService(final BaseClient client) {
-        LoggerUtil.info(getClass(), "Initializing LLMService");
+    public LLMService(final LLMClient client) {
+        LoggerUtil.info(getClass(), "Initializing LLMService using model: {}", client.getClientModelName());
         this.client = client;
     }
 
@@ -65,16 +65,12 @@ public class LLMService {
     /**
      * Synchronous helper to send a prompt, extract the answer, and optionally apply a post-action.
      */
-    private String sendPromptSync(Supplier<String> promptSupplier, String logMessage, Consumer<String> onAnswer) {
+    private String sendPromptSync(Supplier<String> promptSupplier, String logMessage) {
         LoggerUtil.info(getClass(), logMessage);
         try {
             final String prompt = promptSupplier.get();
             final String response = client.sendRequest(prompt, TEMPERATURE, MAX_TOKENS);
-            final String answer = client.getAnswer(response);
-            if (onAnswer != null) {
-                onAnswer.accept(answer);
-            }
-            return answer;
+            return client.getAnswer(response);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -86,12 +82,11 @@ public class LLMService {
      * @param knowledgeGraphAsJson the knowledge graph in JSON format
      * @return a CompletableFuture containing the generated high-level description
      */
-    public CompletableFuture<String> generateHighLevelDescriptionAsync(String knowledgeGraphAsJson) {
+    public CompletableFuture<String> generateHighLevelTextualDescriptionAsync(String knowledgeGraphAsJson) {
         final String log = String.format(
                 "Generating high-level description async for knowledge graph:%n%s%nusing prompt:%n%s",
                 knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
-        return sendPromptAsync(() -> LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson),
-                log, this::writeDescriptionToFile);
+        return sendPromptAsync(() -> LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson), log);
     }
 
     public CompletableFuture<String> generatePlantUMLSyntaxAsync(final String highLevelDescription) {
@@ -116,25 +111,14 @@ public class LLMService {
      * @param knowledgeGraphAsJson the knowledge graph in JSON format
      * @return the generated high-level description
      */
-    public String generateHighLevelDescription(String knowledgeGraphAsJson) {
+    public String generateHighLevelTextualDescription(String knowledgeGraphAsJson) {
         final String log = String.format(
                 "Generating high-level description for knowledge graph:%n%s%nusing prompt:%n%s",
                 knowledgeGraphAsJson, LLMPrompts.PROMPT_TEMPLATE);
-        return sendPromptSync(() -> LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson),
-                log, this::writeDescriptionToFile);
+        return sendPromptSync(() -> LLMPrompts.createPrompt(LLMPrompts.PROMPT_TEMPLATE, knowledgeGraphAsJson), log);
     }
 
-    /**
-     * Writes the generated description to a file.
-     * @param description The description to write.
-     */
-    private void writeDescriptionToFile(String description) {
-        final String filename = "description_output.txt";
-
-        try {
-            Files.writeString(Paths.get(filename), description, StandardOpenOption.CREATE);
-        } catch (IOException e) {
-            LoggerUtil.error(getClass(), "Failed to write generated description to file: " + filename, e);
-        }
+    public String getLLMModelName() {
+        return client.getClientModelName();
     }
 }
