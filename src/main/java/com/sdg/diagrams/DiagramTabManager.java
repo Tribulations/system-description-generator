@@ -18,11 +18,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-//import static com.sdg.diagrams.PlantUMLSamples.DIAGRAM_NAMES;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 /**
  * A manager/tab containing multiple PlantUML {@link DiagramTab}s.
@@ -32,13 +35,16 @@ import java.util.Map;
 public class DiagramTabManager extends JPanel {
     private JTabbedPane tabbedPane;
     private final Map<String, DiagramTab> diagramTabs;
+    private final Map<String, DiagramResult> diagramResults; // holds success or failure per tab
+    private final List<String> diagramOrder = new ArrayList<>();
 
-    public DiagramTabManager(List<String> plantUMLSources) {
+    public DiagramTabManager(List<DiagramResult> results, boolean useResults) {
         diagramTabs = new HashMap<>();
-        initializeUI(plantUMLSources);
+        diagramResults = new HashMap<>();
+        initializeUIFromResults(results);
     }
 
-    private void initializeUI(List<String> plantUMLSources) {
+    private void initializeUIFromResults(List<DiagramResult> results) {
         setLayout(new BorderLayout());
 
         // Create tabbed pane for diagrams
@@ -46,27 +52,31 @@ public class DiagramTabManager extends JPanel {
         tabbedPane.setTabPlacement(JTabbedPane.TOP);
 
         // Initialize tabs for each diagram
-        initializeDiagramTabs(plantUMLSources);
+        initializeDiagramTabsFromResults(results);
 
         add(tabbedPane, BorderLayout.CENTER);
     }
 
-    private void initializeDiagramTabs(List<String> plantUMLSources) {
-        final String[] DIAGRAM_NAMES = new String[plantUMLSources.size()];
-        for (int i = 0; i < plantUMLSources.size(); i++) {
+    private void initializeDiagramTabsFromResults(List<DiagramResult> results) {
+        final String[] DIAGRAM_NAMES = new String[results.size()];
+        for (int i = 0; i < results.size(); i++) {
             String diagramName = "Diagram " + (i + 1);
             DIAGRAM_NAMES[i] = diagramName;
 
-            DiagramTab tab = new DiagramTab(diagramName, plantUMLSources.get(i));
+            DiagramResult result = results.get(i);
+            DiagramTab tab = new DiagramTab(diagramName, result.getPlantUMLSource());
             diagramTabs.put(diagramName, tab);
+            diagramResults.put(diagramName, result);
 
             tabbedPane.addTab(diagramName, tab.getDiagramTab());
+            diagramOrder.add(diagramName);
         }
 
         // Render the first tab initially
         if (!diagramTabs.isEmpty()) {
-            DiagramTab firstTab = diagramTabs.get(DIAGRAM_NAMES[0]);
-            renderDiagram(firstTab);
+            String firstName = DIAGRAM_NAMES[0];
+            DiagramTab firstTab = diagramTabs.get(firstName);
+            renderDiagram(firstName, firstTab);
         }
 
         // Add tab change listener to render diagrams when switched
@@ -76,22 +86,27 @@ public class DiagramTabManager extends JPanel {
                 String selectedDiagramName = DIAGRAM_NAMES[selectedIndex];
                 DiagramTab selectedTab = diagramTabs.get(selectedDiagramName);
                 if (selectedTab != null && !selectedTab.isRendered()) {
-                    renderDiagram(selectedTab);
+                    renderDiagram(selectedDiagramName, selectedTab);
                 }
             }
         });
     }
 
-    private void renderDiagram(DiagramTab tab) {
+    private void renderDiagram(String name, DiagramTab tab) {
         SwingUtilities.invokeLater(() -> {
             try {
-                BufferedImage image = renderPlantUMLDiagram(tab.getPlantUMLSource());
-
-                if (image != null) {
-                    tab.displayImage(image);
+                DiagramResult result = diagramResults.get(name);
+                if (result != null && !result.isSuccess()) {
+                    // Show provided failure message
+                    tab.displayErrorMessage(result.getErrorMessage());
                 } else {
-                    tab.displayErrorMessage("Failed to render PlantUML diagram as tab is null.");
-                    LoggerUtil.error(DiagramTabManager.class, "Failed to render PlantUML diagram as tab is null.");
+                    BufferedImage image = renderPlantUMLDiagram(tab.getPlantUMLSource());
+                    if (image != null) {
+                        tab.displayImage(image);
+                    } else {
+                        tab.displayErrorMessage("Failed to render PlantUML diagram as tab is null.");
+                        LoggerUtil.error(DiagramTabManager.class, "Failed to render PlantUML diagram as tab is null.");
+                    }
                 }
 
                 tab.setRendered(true);
@@ -146,6 +161,52 @@ public class DiagramTabManager extends JPanel {
         } catch (RuntimeException e) {
             LoggerUtil.error(DiagramTabManager.class, "PlantUML rendering failed: " + e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Render PlantUML to PNG bytes using PlantUML library.
+     */
+    private byte[] renderPlantUMLDiagramToPngBytes(String plantUMLSource) throws IOException {
+        try {
+            SourceStringReader plantUmlReader = new SourceStringReader(plantUMLSource);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            FileFormatOption formatOption = new FileFormatOption(FileFormat.PNG);
+            plantUmlReader.outputImage(baos, formatOption);
+
+            byte[] imageBytes = baos.toByteArray();
+            if (imageBytes.length == 0) {
+                LoggerUtil.error(DiagramTabManager.class, "PlantUML produced no output - check diagram syntax");
+                throw new IOException("PlantUML produced no output");
+            }
+            return imageBytes;
+        } catch (RuntimeException e) {
+            LoggerUtil.error(DiagramTabManager.class, "PlantUML rendering failed: " + e.getMessage());
+            throw new IOException("PlantUML rendering failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Saves all successfully generated diagrams to the specified directory as PNG files.
+     * Filenames are generated as diagram-<index>.png starting at 1.
+     * Failed diagrams are skipped.
+     */
+    public void saveAllDiagramsAsPng(Path outputDir) throws IOException {
+        if (outputDir == null) throw new IllegalArgumentException("outputDir cannot be null");
+        Files.createDirectories(outputDir);
+
+        for (int i = 0; i < diagramOrder.size(); i++) {
+            String name = diagramOrder.get(i);
+            DiagramResult result = diagramResults.get(name);
+            if (result == null || !result.isSuccess()) {
+                LoggerUtil.info(DiagramTabManager.class, "Skipping saving of failed or missing diagram: {}", name);
+                continue;
+            }
+            String fileName = String.format("diagram-%d.png", i + 1);
+            Path file = outputDir.resolve(fileName);
+            byte[] pngBytes = renderPlantUMLDiagramToPngBytes(result.getPlantUMLSource());
+            Files.write(file, pngBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+            LoggerUtil.info(DiagramTabManager.class, "Saved diagram '{}' to {}", name, file.toAbsolutePath());
         }
     }
 }
