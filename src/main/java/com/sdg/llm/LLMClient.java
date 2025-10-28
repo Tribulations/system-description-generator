@@ -56,4 +56,6 @@ public abstract  class LLMClient {
     protected abstract HttpRequest buildHttpRequest(String requestBody);
 
     protected abstract String getAnswer(String response);
+
+    protected abstract String getClientModelName();
 }
