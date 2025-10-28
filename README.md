@@ -1,5 +1,8 @@
 # System Description Generator
 
+- This README explains how to run the System Description Generator (SDG)
+- See [HOW-TO.md](HOW-TO.md) for a quick start guide and how to use it.
+
 ## Setup Instructions
 
 To run the System Description Generator (SDG), follow these steps:
@@ -9,17 +12,18 @@ To run the System Description Generator (SDG), follow these steps:
     - Create an account and generate your API key
 
 2. **Configure required environment variables**
-    - Create a .env file based on the .env.template file in the root directory of the project.
+    - Create a .env file based on the [env.template](.env.template) file in the root directory of the project.
 
 3. **Install Graphviz**
     - See [Graphviz](https://www.graphviz.org/download/)
+    - Used for rendering diagrams
 
 4. **Setup Neo4j database (knowledge graph)**
-    - You can either install and configure Neo4j locally or use a docker container (likely easier on Windows)
+    - You can either install and configure Neo4j locally or use a docker container (likely easier on Windows but interactions with database are noticeably slower)
       - **Install Neo4j locally**: See the [Neo4j installation section](#neo4j-installation-and-configuration) below for instructions
       - **Use Neo4j docker container**
         - Install [docker compose](https://docs.docker.com/compose/install) if not already installed 
-        - Run `docker compose --env-file .env up` in the root directory of the project.
+        - Run `docker compose --env-file .env up` in the root directory of the project or start using docker desktop.
 
 5. **Build and run**
     - Run `mvn clean install` to build the application
@@ -115,13 +119,13 @@ Logging levels and other settings can be set in `src/main/resources/logback.xml`
 
 ## Python Microservice & Java Client (Currently not used by the application)
 
-### Install Python modules and dependencies
+### Install Python modules and dependencies (Currently not used by the application)
 
 ```bash
 pip install -r src/main/python/requirements.txt
 ```
 
-### Run the python service
+### Run the python service (Currently not used by the application)
 
 ```bash
 python src/main/python/microservice/multiply_service.py
