@@ -30,8 +30,8 @@ import java.util.List;
  * @author Suraj Karki
  * @author Joaim Colloz
  */
-public class InputController {
-    private static final Logger logger = LoggerFactory.getLogger(InputController.class);
+public class MainController {
+    private static final Logger logger = LoggerFactory.getLogger(MainController.class);
 
     private final MainView view;
     private final KnowledgeGraphService graphService;
@@ -44,7 +44,7 @@ public class InputController {
      * @param view  The UI component for user interaction.
      * @param graphService The service responsible for processing files and generating the knowledge graph.
      */
-    public InputController(MainView view, KnowledgeGraphService graphService, DiagramFetcher diagramFetcher) {
+    public MainController(MainView view, KnowledgeGraphService graphService, DiagramFetcher diagramFetcher) {
         this.view = view;
         this.graphService = graphService;
         this.diagramFetcher = diagramFetcher;
@@ -232,7 +232,7 @@ public class InputController {
 
             KnowledgeGraphService graphService = new KnowledgeGraphService(config);  // Initialize KnowledgeGraphService
             DiagramFetcher diagramFetcher = new DiagramFetcher(new LLMService(new GeminiApiClient()));
-            InputController controller = new InputController(view, graphService, diagramFetcher);
+            MainController controller = new MainController(view, graphService, diagramFetcher);
 
             // Ensure resources are disposed of when the application exits
             Runtime.getRuntime().addShutdownHook(new Thread(controller::dispose));
