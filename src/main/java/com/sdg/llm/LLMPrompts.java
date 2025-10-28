@@ -40,13 +40,13 @@ public class LLMPrompts {
             1. **Use Case Diagram** – Show the primary actors (users, external systems) and their interactions with the system’s main features.
             2. **Component/Architecture Diagram** – Show the main system components (grouped into layers if applicable), their relationships, and dependencies. Keep this diagram **extra concise**, with only the most important elements.
             3. **Package Diagram** – Show the high-level organization of the codebase (Java packages, modules, or namespaces). Keep this diagram **extra concise**, with only essential packages or modules.
-            4. **Sequence Diagram** – Illustrate a key workflow (choose the most representative or critical one, e.g., variant calling in GATK).
+            4. **Sequence Diagram** – Illustrate a key workflow (choose the most representative or critical one).
             5. **Activity Diagram** – Show the major steps and decision points in a core processing flow.
             
             For each diagram:
             - Use **PlantUML syntax**.
             - Include **titles and notes** where helpful to explain important parts.
-            - Keep diagrams **high-level but accurate** – avoid too much detail that would overwhelm a new maintainer.   \s
+            - Keep diagrams **high-level but accurate** – avoid too much detail that would overwhelm a new maintainer.
             - Output all diagrams in separate PlantUML code blocks.
             - Make sure to not add information not included in the high-level textual description. 
             - Make sure to check for syntax errors.
