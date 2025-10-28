@@ -6,7 +6,9 @@ import com.sdg.ast.ASTAnalyzerConfig;
 import com.sdg.ast.JavaFileParser;
 import com.sdg.ast.MethodAnalysisHelper;
 import com.sdg.ast.MethodCallAnalyzer;
-import com.sdg.llm.GeminiApiClient;
+import com.sdg.io.FileIO;
+import com.sdg.io.OutputPaths;
+import com.sdg.llm.LLMClient;
 import com.sdg.llm.LLMService;
 import com.sdg.logging.LoggerUtil;
 import com.sdg.model.InputHandler;
@@ -18,7 +20,6 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,8 +49,8 @@ public class KnowledgeGraphService implements AutoCloseable {
     /**
      * Default constructor initializes the service components.
      */
-    public KnowledgeGraphService() {
-        this(new ASTAnalyzerConfig());
+    public KnowledgeGraphService(final LLMClient llmClient) {
+        this(new ASTAnalyzerConfig(), llmClient);
     }
 
     /**
@@ -57,7 +58,7 @@ public class KnowledgeGraphService implements AutoCloseable {
      *
      * @param config the configuration for the ASTAnalyzer
      */
-    public KnowledgeGraphService(final ASTAnalyzerConfig config) {
+    public KnowledgeGraphService(final ASTAnalyzerConfig config, final LLMClient llmClient) {
         LoggerUtil.info(getClass(), "Initializing KnowledgeGraphService");
 
         this.dbOps = new GraphDatabaseOperations();
@@ -66,18 +67,19 @@ public class KnowledgeGraphService implements AutoCloseable {
         this.parser = new JavaFileParser();
         this.analyzer = new ASTAnalyzer(dbOps, config);
         this.inputHandler = new InputHandler();  // Initialize InputHandler
-        this.llmService = new LLMService(new GeminiApiClient());
+
+        this.llmService = new LLMService(llmClient);
         this.methodAnalysisHelper = new MethodAnalysisHelper();
     }
-    
+
     /**
      * Constructor accepting a {@link ASTAnalyzerConfig} and a method filter percentage.
      *
      * @param config the configuration for the ASTAnalyzer
      * @param methodFilterPercentage percentage of methods to filter out (0.0-1.0)
      */
-    public KnowledgeGraphService(final ASTAnalyzerConfig config, double methodFilterPercentage) {
-        this(config);
+    public KnowledgeGraphService(final ASTAnalyzerConfig config, final LLMClient llmClient, double methodFilterPercentage) {
+        this(config, llmClient);
         this.methodAnalysisHelper.setMethodFilterPercentage(methodFilterPercentage);
     }
     
@@ -124,7 +126,6 @@ public class KnowledgeGraphService implements AutoCloseable {
         return inputHandler.processFilesRx(inputPath)
                 .subscribeOn(Schedulers.io())
                 .map(ProcessingResult::file)
-                .observeOn(Schedulers.computation())
                 .flatMap(file -> Observable.fromCallable(() -> {
                     try {
                         LoggerUtil.debug(getClass(), "Processing file: {}", file);
@@ -146,6 +147,10 @@ public class KnowledgeGraphService implements AutoCloseable {
                             .doOnError(this::handleError)
                             .andThen(Observable.just(new ProcessingResult(Path.of(inputPath), 0, "")));
                 });
+    }
+
+    public String getSystemName() {
+        return systemName;
     }
 
     /**
@@ -228,7 +233,7 @@ public class KnowledgeGraphService implements AutoCloseable {
     public Single<String> generateLLMResponseAsync() {
         return Single.create(emitter -> {
             // Get the CompletableFuture from the LLMService
-            CompletableFuture<String> future = llmService.generateHighLevelDescriptionAsync(getKnowledgeGraphAsJson());
+            CompletableFuture<String> future = llmService.generateHighLevelTextualDescriptionAsync(getKnowledgeGraphAsJson());
 
             // Handle success
             future.whenComplete((result, ex) -> {
@@ -241,10 +246,20 @@ public class KnowledgeGraphService implements AutoCloseable {
         });
     }
 
+    private void writeToFile(String json, String systemName) throws IOException {
+        Path outputDir = OutputPaths.getBaseOutputDir(systemName);
+        Path filePath = outputDir.resolve("graph_output.json");
+        FileIO.write(filePath, json);
+        LoggerUtil.info(getClass(), "Wrote knowledge graph JSON to {}", filePath.toAbsolutePath());
+    }
+
     private String getKnowledgeGraphAsJson() {
         try {
-            return GraphDataToJsonConverter.buildTopLevelNodesAsJSONString(systemName);
+            String jsonContext = GraphDataToJsonConverter.buildTopLevelNodesAsJSONString(systemName);
+            writeToFile(jsonContext, systemName);
+            return jsonContext;
         } catch (IOException e) {
+            LoggerUtil.error(getClass(), "Failed to write JSON to file or build JSON", e);
             throw new RuntimeException(e);
         }
     }
